@@ -31,7 +31,7 @@ export const ALTAR = {
   server: { x: 1.45, z: -4.15 },
 };
 
-export const PEWS = { rows: 8, z0: -2.15, pitch: 0.96, left: [-3.42, -0.62], right: [0.62, 3.3] };
+export const PEWS = { rows: 8, z0: -2.15, pitch: 0.96, left: [-3.02, -0.62], right: [0.62, 3.3] };
 
 export const SEAT = { x: -0.9, row: 4 };
 

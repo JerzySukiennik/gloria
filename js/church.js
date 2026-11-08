@@ -564,16 +564,16 @@ function mainHall(m, scene, uniforms, toSun) {
   floor.receiveShadow = true;
   g.add(floor);
 
-  const hu = { ...uniforms, uCenterCol: { value: 0 } };
+  const hu = { ...uniforms, uCenterCol: { value: 0 }, uTextCols: { value: 60 } };
   const latMat = m.lattice.clone();
   patchLatticeMaterial(latMat, hu);
   const apseG = new THREE.Group();
-  const apse = buildLattice({ ...m, lattice: latMat }, hu, toSun, { pts: APSE.map(([x, z]) => [x / 2, z / 2]), center: [xc / 2, 0], crossAt: [xc / 2, z0 / 2] });
+  const apse = buildLattice({ ...m, lattice: latMat }, hu, toSun, { pts: APSE.map(([x, z]) => [x / 2, z / 2]), center: [xc / 2, 0], crossAt: [xc / 2, z0 / 2], textCols: true });
   apseG.add(apse.group);
   apseG.scale.setScalar(2);
   g.add(apseG);
 
-  const su = { ...uniforms, uCenterCol: { value: -1000 } };
+  const su = { ...uniforms, uCenterCol: { value: -1000 }, uTextCols: { value: 1e6 } };
   const sideMat = m.lattice.clone();
   patchLatticeMaterial(sideMat, su);
   const right = hallSide(g, { ...m, lattice: sideMat }, x1 + 0.005, -1, su, toSun);

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { LATTICE, ARCH, NAVE, PEWS, ALTAR, WALL, ROOM, HALL, APSE, STAGE, HALTAR, COLUMNS, HPEWS, MIRROR_X } from './layout.js';
 import { frameAt, clamp, lerp, damp } from './util.js';
 
-const CELL = 0.1, X0 = -37.6, Z0 = -12.8, NX = 424, NZ = 218, R = 0.22;
+const CELL = 0.1, X0 = -37.6, Z0 = -12.8, NX = 424, NZ = 218, R = 0.2;
 
 function insidePoly(poly, x, z) {
   let c = false;

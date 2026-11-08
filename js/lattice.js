@@ -4,7 +4,8 @@ import { LATTICE, H } from './layout.js';
 import { frameAt, sweepCurve } from './util.js';
 
 export const LED_GLSL = /* glsl */ `
-uniform float uTime, uBeat, uLed, uMode, uCross, uFlash, uColPitch, uCenterCol, uY0, uY1, uGap, uDayGain;
+uniform float uTime, uBeat, uLed, uMode, uCross, uFlash, uColPitch, uCenterCol, uY0, uY1, uGap, uDayGain, uTextOn, uTextCols, uTextOff;
+uniform sampler2D uText;
 uniform vec3 uColA, uColB, uColC, uDay;
 uniform float uLevels[8];
 uniform float uPat[15];
@@ -56,7 +57,7 @@ float crossMask(float col, float yn){
   float h = step(d, 5.5) * step(0.6, yn) * step(yn, 0.8);
   return max(v, h);
 }
-vec3 latticeLight(float col, float y, float sunF){
+vec3 latticeLight(float col, float y, float sunF, float uc){
   vec2 s = slotAt(col, y);
   float k = s.x;
   float yn = (y - uY0) / (uY1 - uY0);
@@ -71,6 +72,10 @@ vec3 latticeLight(float col, float y, float sunF){
   float cm = crossMask(col, yn);
   c = mix(c, c * 0.12, uCross * (1.0 - cm));
   c += vec3(1.0, 0.78, 0.42) * 7.0 * uCross * cm;
+  if (uTextOn > 0.001) {
+    float tx = texture2D(uText, vec2(uc / uTextCols + uTextOff, clamp(yn, 0.0, 1.0))).r;
+    c = mix(c, c * 0.15 + vec3(1.0, 0.96, 0.9) * 9.0 * tx, uTextOn);
+  }
   c += vec3(1.0) * uFlash * 5.0;
   return c * step(0.0, k);
 }
@@ -82,7 +87,7 @@ export function latticeUniforms() {
   return {
     uTime: { value: 0 }, uBeat: { value: 0 }, uLed: { value: 0 }, uMode: { value: 0 }, uCross: { value: 0 }, uFlash: { value: 0 },
     uColPitch: { value: LATTICE.pitch }, uCenterCol: { value: 0 }, uY0: { value: LATTICE.y0 }, uY1: { value: LATTICE.y1 }, uGap: { value: LATTICE.gap },
-    uDayGain: { value: 1 },
+    uDayGain: { value: 1 }, uTextOn: { value: 0 }, uTextCols: { value: 60 }, uTextOff: { value: 0 }, uText: { value: null },
     uColA: { value: new THREE.Color(1, 0.6, 0.2) }, uColB: { value: new THREE.Color(0.3, 0.5, 1) }, uColC: { value: new THREE.Color(1, 1, 1) },
     uDay: { value: new THREE.Color(0.9, 0.93, 0.97).multiplyScalar(7.0) },
     uLevels: { value: new Array(8).fill(0) },
@@ -188,7 +193,7 @@ export function buildLattice(mats, uniforms, toSun, opts = {}) {
       varying float vU; varying float vY; varying float vS;
       void main(){
         float col = floor(vU);
-        vec3 c = latticeLight(col, vY, vS);
+        vec3 c = latticeLight(col, vY, vS, vU);
         vec2 s = slotAt(col, vY);
         if (s.x < 0.0) c = uDay * 0.4 * uDayGain;
         gl_FragColor = vec4(c, 1.0);
@@ -228,6 +233,7 @@ export function buildLattice(mats, uniforms, toSun, opts = {}) {
   const cc = opts.crossAt || [0, -5.7];
   for (const col of cols) { const d = Math.hypot(col.p.x - cc[0], col.p.z - cc[1]); if (d < best && col.n.z > 0.8) { best = d; center = col.c; } }
   if (!opts.keepCenter) uniforms.uCenterCol.value = center;
+  if (opts.textCols) uniforms.uTextCols.value = N;
   return { group, curve, N, cols, slots, glass, meshes, center };
 }
 
@@ -244,7 +250,7 @@ export function patchLatticeMaterial(mat, uniforms) {
           float side = 1.0 - abs(vLN);
           float depthT = clamp((vLZ + ${(LATTICE.depth / 2).toFixed(3)}) / ${LATTICE.depth.toFixed(3)}, 0.0, 1.0);
           float g = side * (0.25 + 0.75 * pow(1.0 - depthT, 1.6));
-          vec3 lc = latticeLight(vCol, vLY + uY0, vSun);
+          vec3 lc = latticeLight(vCol, vLY + uY0, vSun, vCol + 0.5);
           totalEmissiveRadiance += lc * g * 0.3;
         }`);
   };
