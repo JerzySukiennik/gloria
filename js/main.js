@@ -454,7 +454,7 @@ function updateShow(dt, now) {
   A.levels(G.levels);
   for (let i = 0; i < 8; i++) U.uLevels.value[i] = G.levels[i];
   const strobe = !!(p && p.kind === 'high' && p.bar % 8 >= 6);
-  const strobeOn = strobe && Math.sin(beat * Math.PI * (p.bar % 8 === 7 ? 8 : 4)) > 0.55;
+  const strobeOn = strobe && ((beat % 1) + 1) % 1 < 0.16;
   G.strobeOn = strobeOn;
   const textOn = !!(p && !p.breakdown && ((p.kind === 'high' && p.phrase % 2 === 1 && p.bar % 8 < 6) || G.drops.has(p.bar)));
   if (textOn) {
@@ -629,6 +629,7 @@ let fpsT = 0, fpsN = 0;
 function frame() {
   const dt = Math.min(0.05, clock.getDelta());
   G.t += dt;
+  if (G.pendingPR) { stage.setPixelRatio(G.pendingPR); G.pendingPR = 0; }
   const now = A.ctx ? A.now - A.latency : 0;
   if (A.ctx) {
     for (let i = G.waiters.length - 1; i >= 0; i--) {
@@ -654,8 +655,9 @@ function frame() {
     window.__gl.fps = fps;
     fpsN = 0; fpsT = 0;
     if (!debugView && G.state === 'play') {
-      if (fps < 50 && stage.pixelRatio > 0.7) stage.setPixelRatio(Math.max(0.7, stage.pixelRatio - 0.1));
-      else if (fps > 58.5 && stage.pixelRatio < stage.maxPR) { G.goodN = (G.goodN || 0) + 1; if (G.goodN > 3) { G.goodN = 0; stage.setPixelRatio(Math.min(stage.maxPR, stage.pixelRatio + 0.05)); } }
+      if (fps < 47 && stage.pixelRatio > 0.65) { G.pendingPR = Math.max(0.65, stage.pixelRatio - 0.1); G.goodN = 0; G.lastDrop = G.t; }
+      else if (fps > 58 && stage.pixelRatio < stage.maxPR && G.t - (G.lastDrop || -99) > 12) { G.goodN = (G.goodN || 0) + 1; if (G.goodN > 3) { G.goodN = 0; G.pendingPR = Math.min(stage.maxPR, stage.pixelRatio + 0.05); } }
+      else G.goodN = 0;
     }
   }
   requestAnimationFrame(frame);

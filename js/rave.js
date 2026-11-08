@@ -155,7 +155,7 @@ export class MovingHeads {
       h.dir.set(Math.cos(h.pan) * Math.sin(h.tilt), -Math.cos(h.tilt), Math.sin(h.pan) * Math.sin(h.tilt)).normalize();
       h.m.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), h.dir);
       h.color.copy(prog.colors[i % prog.colors.length]);
-      const strobe = prog.strobe ? (Math.sin(beat * Math.PI * 8 + i) > 0.3 ? 1.4 : 0) : 1;
+      const strobe = prog.strobe ? (((beat + i * 0.25) % 1) < 0.5 ? 1.4 : 0.35) : 1;
       h.m.material.uniforms.uColor.value.copy(h.color);
       h.m.material.uniforms.uI.value = prog.intensity * strobe;
       h.m.material.uniforms.uHaze.value = prog.haze;

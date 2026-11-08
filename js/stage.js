@@ -6,6 +6,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { buildChurch } from './church.js';
 import { H, DOME, ALTAR, PEWS, SEAT, WALL, HALL, HDOME, HALTAR, STAGE, MIRROR_X } from './layout.js';
 
@@ -127,6 +128,11 @@ export class Stage {
       comp.addPass(ao);
       this.ao = ao;
     }
+    comp.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); if (any(isnan(c)) || any(isinf(c))) c = vec4(0.0, 0.0, 0.0, 1.0); gl_FragColor = vec4(clamp(c.rgb, 0.0, 48.0), 1.0); }',
+    }));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.16, 0.4, 2.2);
     comp.addPass(this.bloom);
     comp.addPass(new OutputPass());
