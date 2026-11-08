@@ -226,7 +226,7 @@ export class Glitter {
     this.uniforms = { uI: { value: 0 }, uTime: { value: 0 } };
     this.points = new THREE.Points(g, new THREE.ShaderMaterial({
       uniforms: this.uniforms,
-      vertexShader: `uniform float uTime; varying float vT; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; vT = sin(uTime * 9.0 + position.x * 31.0 + position.z * 17.0); gl_PointSize = (2.0 + 3.0 * max(0.0, vT)) * 6.0 / max(0.5, -mv.z); }`,
+      vertexShader: `uniform float uTime; varying float vT; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; vT = sin(uTime * 9.0 + position.x * 31.0 + position.z * 17.0); gl_PointSize = (1.2 + 2.2 * max(0.0, vT)) * 5.0 / max(0.5, -mv.z); }`,
       fragmentShader: `uniform float uI; varying float vT; void main(){ vec2 p = gl_PointCoord - 0.5; float d = length(p); float a = smoothstep(0.5, 0.0, d) * uI * (0.35 + 0.65 * max(0.0, vT)); gl_FragColor = vec4(vec3(1.0, 0.82, 0.45) * a * 3.0, 1.0); }`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     }));

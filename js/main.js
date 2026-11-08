@@ -467,7 +467,7 @@ function updateShow(dt, now) {
   U.uTextOn.value = G.text;
   G.flash = damp(G.flash, 0, 8, dt);
   G.burst = damp(G.burst, 0, 1.4, dt);
-  U.uFlash.value = G.flash * 0.18 + G.burst * 0.15 + G.pump * 0.1 + (strobeOn ? 0.7 : 0) + G.blind * 0.35;
+  U.uFlash.value = G.flash * 0.15 + G.burst * 0.08 + G.pump * 0.08 + (strobeOn ? 0.6 : 0) + G.blind * 0.15;
   G.cross = damp(G.cross, p && p.breakdown ? 0.95 : 0, p && p.breakdown ? 0.5 : 1.5, dt);
   U.uCross.value = G.cross;
   const dayGain = lerp(1, 0.03, G.dark) * (1 - 0.3 * G.cross);
@@ -476,17 +476,17 @@ function updateShow(dt, now) {
   tmpCol.copy(U.uColA.value).lerp(U.uColB.value, 0.5);
   stage.walls.forEach((l, i) => {
     l.color.copy(dayCol).lerp(tmpCol, G.ledMix * 0.9);
-    l.intensity = stage.wallBase[i] * (dayGain * 0.9 + G.ledMix * 0.45 * (0.35 + 0.65 * G.levels[1]) + G.flash * 0.3 + G.pump * 0.45 + (strobeOn ? 1.8 : 0) + G.blind * 1.4);
+    l.intensity = stage.wallBase[i] * (dayGain * 0.9 + G.ledMix * 0.45 * (0.35 + 0.65 * G.levels[1]) + G.flash * 0.3 + G.pump * 0.4 + (strobeOn ? 1.6 : 0) + G.blind * 0.5);
   });
-  stage.hemi.intensity = 0.55 * lerp(1, 0.08, G.dark) + (strobeOn ? 0.9 : 0) + G.blind * 0.7 + G.pump * 0.05;
+  stage.hemi.intensity = 0.55 * lerp(1, 0.08, G.dark) + (strobeOn ? 0.8 : 0) + G.blind * 0.25 + G.pump * 0.05;
   scene.environmentIntensity = 0.55 * lerp(1, 0.18, G.dark);
   G.domeFlash = damp(G.domeFlash, 0, 7, dt);
   const domeU = church.hall.dome.winMat.uniforms;
-  domeU.uGlow.value = dayGain * 0.9 + G.domeFlash * 1.6 + G.cross * 1.6 + G.burst;
+  domeU.uGlow.value = dayGain * 0.9 + G.domeFlash * 1.6 + G.cross * 1.6 + G.burst * 0.5;
   domeU.uTint.value.copy(dayCol).lerp(tmpCol, G.ledMix * 0.7).lerp(goldCol, G.cross);
   church.dome.winMat.uniforms.uGlow.value = dayGain * 0.9 + G.domeFlash * 0.8 + G.cross;
   church.dome.winMat.uniforms.uTint.value.copy(domeU.uTint.value);
-  stage.domeLight.intensity = 30 * (dayGain + G.domeFlash * 1.2 + G.cross * 1.5 + G.burst);
+  stage.domeLight.intensity = 30 * (dayGain + G.domeFlash * 1.2 + G.cross * 1.5 + G.burst * 0.4);
   stage.chapelDome.intensity = 6 * (dayGain + G.cross);
   const kindI = !p ? 0 : p.breakdown ? 0.25 : { low: 0.5, mid: 0.85, high: 1 }[p.kind];
   const showI = G.R * kindI * (1 + G.pump * 0.35);
@@ -519,7 +519,7 @@ function updateShow(dt, now) {
   });
   org.glow.instanceColor.needsUpdate = true;
   const dk = church.hall.decks;
-  dk.group.visible = G.songOn;
+  dk.group.visible = false;
   for (const pl of dk.platters) pl.rotation.y -= dt * 3.5;
   stage.altarSpot.intensity = G.cross * 110 + G.burst * 40;
   G.madGlow = damp(G.madGlow, 0, 2.5, dt);
@@ -530,7 +530,7 @@ function updateShow(dt, now) {
   beams.uniforms.uTime.value = G.t;
   smoke.uniforms.uTint.value.setRGB(0.9, 0.88, 0.86).lerp(tmpCol, G.ledMix * 0.6);
   smoke.uniforms.uLight.value = 0.25 + 0.45 * dayGain + showI * 0.3 + (strobeOn ? 0.4 : 0);
-  glitter.active = (p && !p.breakdown && ((p.kind === 'high' && p.phrase >= 2) || (p.bar > G.br.b && p.bar <= G.br.b + 8))) || G.burst > 0.5 ? 1 : 0;
+  glitter.active = (p && !p.breakdown && p.bar > G.br.b && p.bar <= G.br.b + 6) || G.burst > 0.6 ? 0.6 : 0;
   for (const f of church.flames) f.scale.set(1, 2.2 + Math.sin(G.t * 23 + f.id) * 0.3, 1);
   return { beat, beatPhase, p };
 }
