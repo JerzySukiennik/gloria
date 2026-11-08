@@ -4,9 +4,13 @@ A Mass that turns into a hardcore rave. You walk into a church built around a re
 
 Open `index.html` through any static server (ES modules from a CDN, no build step).
 
+## Live lyrics
+
+The `Aa` button (or `T`) shows the words of the song floating in the hall: each word appears the moment it is sung, and the sentence clears when it ends. The game ships only a timing map (`assets/lyrics-*.json`: which word of which line, and when). The text itself is fetched at play time from [LRCLIB](https://lrclib.net), so no lyrics are stored in this repository. The timing comes from our own audio: vocals separated with Demucs, word times from Whisper large-v3, then aligned to the LRCLIB line and word order (`Niepotrzebne/lyrics/align.py`).
+
 ## Controls
 
-- Desktop: `W A S D` or arrows to walk, mouse to look (click to lock the pointer), `E` to sit down or stand up, `Space` to jump, `Shift` to walk faster.
+- Desktop: `W A S D` or arrows to walk, mouse to look (click to lock the pointer), `E` to sit down or stand up, `Space` to jump, `Shift` to walk faster, `T` to show or hide the lyrics.
 - Phone: left thumb on the stick walks, drag anywhere else to look, buttons for sitting and jumping.
 
 ## How it works

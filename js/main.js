@@ -7,6 +7,7 @@ import { AudioEngine } from './audio.js';
 import { Player } from './player.js';
 import { HALL, HPEWS, PEWS, PIT, HALTAR, STAGE, MIRROR_X, RISER } from './layout.js';
 import { clamp, lerp, damp, rnd, canvasTex } from './util.js';
+import { Lyrics3D, loadLyrics } from './lyrics3d.js';
 
 const SONGS = {
   techno: { name: 'Ameno', tv: 'AMENO' },
@@ -100,6 +101,10 @@ const disco = new DiscoBall(scene, Q === 'low' ? 160 : 280);
 const glitter = new Glitter(scene, Q === 'low' ? 80 : 160);
 const confetti = new Confetti(scene, Q === 'low' ? 400 : Q === 'mid' ? 800 : 1200);
 const blinders = new Blinders(scene);
+const lyrics = new Lyrics3D(scene, { y: 2.9, bounds: { x0: HALL.x0 + 0.8, x1: 7.5, z0: STAGE.z1 + 0.3, z1: HALL.z1 - 0.8 } });
+let lyricsPref = true;
+try { lyricsPref = localStorage.getItem('gloria.lyrics') !== '0'; } catch (e) {}
+lyrics.on = lyricsPref;
 const riserEdge = new THREE.MeshBasicMaterial({ color: 0x000000 });
 {
   const deck = new THREE.Mesh(new THREE.BoxGeometry(RISER.w, RISER.h, RISER.d), new THREE.MeshStandardMaterial({ color: 0x0c0c0f, roughness: 0.55, metalness: 0.3 }));
@@ -164,7 +169,7 @@ const G = {
   songOn: false, songStart: 0, lastBeat: -1, lastBar: -1, waiters: [], bed: null, runId: 0, levels: new Array(8).fill(0),
   part: '', burst: 0, song: null, AM: null, br: null, drops: new Set(), firstHigh: -1, dark: 0, pump: 0, blind: 0, text: 0, word: '',
 };
-window.__gl = { stage, G, A, crowd, clergy, player, ready: false, THREE, lasers, pyro, bota, disco, confetti };
+window.__gl = { stage, G, A, crowd, clergy, player, ready: false, THREE, lasers, pyro, bota, disco, confetti, lyrics };
 
 const VIEWS = {
   hall: [[HALL.xc, 1.75, 7.6], [HALL.xc, 3.2, -10]],
@@ -330,6 +335,10 @@ async function choose(k) {
   card.classList.remove('loading');
   document.querySelectorAll('.song').forEach((c) => c.classList.remove('on'));
   prepSong(k);
+  lyrics.set(null);
+  G.lyricsOk = false;
+  lyrBtn();
+  loadLyrics(k).then((s) => { if (G.song !== k) return; lyrics.set(s); G.lyricsOk = !!s; lyrBtn(); });
   $('pick').classList.add('hidden');
   body.classList.add('playing');
   G.state = 'play';
@@ -369,6 +378,16 @@ async function enter() {
 $('start').addEventListener('click', enter);
 window.addEventListener('keydown', (e) => { if (G.state === 'title' && (e.key === 'Enter' || e.key === ' ') && !$('start').disabled) enter(); });
 $('mute').addEventListener('click', () => { A.setMuted(!A.muted); $('mute').classList.toggle('off', A.muted); });
+function lyrBtn() {
+  const b = $('lyr');
+  b.classList.toggle('off', !lyrics.on);
+  b.classList.toggle('none', G.state === 'play' && G.song && !G.lyricsOk);
+  b.title = !lyrics.on ? 'Tekst wyłączony (T)' : G.lyricsOk ? 'Tekst piosenki włączony (T)' : 'Tekst piosenki (T)';
+}
+function toggleLyrics() { lyrics.on = !lyrics.on; try { localStorage.setItem('gloria.lyrics', lyrics.on ? '1' : '0'); } catch (e) {} lyrBtn(); }
+$('lyr').addEventListener('click', toggleLyrics);
+window.addEventListener('keydown', (e) => { if ((e.key === 't' || e.key === 'T') && !e.metaKey && !e.ctrlKey && !e.altKey) toggleLyrics(); });
+lyrBtn();
 $('again').addEventListener('click', () => { G.runId++; A.stopSong(0.4); showPick(); });
 $('seatBtn').addEventListener('click', () => player.toggleSeat());
 $('jumpBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); player.jump(); });
@@ -680,6 +699,7 @@ function frame() {
   if (Math.random() < dt * 9) smoke.emit(clergy.smokePos || clergy.censerPos, 1, { vel: { x: 0, y: 0.3, z: 0.05 }, jitter: 0.08, life: 6, size: 0.09, grow: 0.45, opacity: 0.22 });
   smoke.update(dt, G.t);
   glitter.update(dt, G.t);
+  lyrics.update(dt, G.songOn ? now - G.songStart : null, stage.camera, G.state === 'play' || !!debugView);
   updateCamera(dt, s);
   if (G.state === 'play') updateHud();
   stage.render();
