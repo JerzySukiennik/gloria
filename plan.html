@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gloria, rzut kaplicy</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<style>
+  :root { --ink: #0b0a09; --ivory: #f3ecdf; --dim: rgba(243,236,223,.6); --gold: #e2b25a; }
+  body { margin: 0; background: var(--ink); color: var(--ivory); font: 15px/1.5 -apple-system, system-ui, sans-serif; }
+  main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); gap: 36px; padding: 36px; max-width: 1280px; margin: 0 auto; }
+  h1 { font: 400 44px/1 "New York", ui-serif, Georgia, serif; margin: 0 0 6px; }
+  p { color: var(--dim); margin: 0 0 18px; }
+  svg { width: 100%; height: auto; background: #12110f; border-radius: 18px; }
+  ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: baseline; }
+  li b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--gold); color: var(--ink); font-size: 12px; }
+  .dims { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(243,236,223,.14); }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 18px; } }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>Rzut kaplicy</h1>
+    <p>Tak odczytałem układ z Twoich 16 zdjęć. Ołtarz na górze, wejście na dole, widok z góry. Popraw numery, które się nie zgadzają.</p>
+    <svg id="plan" viewBox="0 0 640 720"></svg>
+  </section>
+  <aside>
+    <ol id="legend"></ol>
+    <div class="dims" id="dims"></div>
+  </aside>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import { H, ROOM, LATTICE, ARCH, NAVE, DOME, ALTAR, PEWS, WALL, ITEMS } from './js/layout.js';
+import { frameAt } from './js/util.js';
+const svg = document.getElementById('plan');
+const S = 40, OX = 440, OZ = 260;
+const X = (x) => OX + x * S, Z = (z) => OZ + z * S;
+const el = (tag, a, txt) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in a) e.setAttribute(k, a[k]); if (txt) e.textContent = txt; svg.appendChild(e); return e; };
+const curve = new THREE.CatmullRomCurve3(LATTICE.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+let d = '';
+for (let i = 0; i <= 120; i++) { const { p } = frameAt(curve, i / 120); d += (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Z(p.z).toFixed(1); }
+el('rect', { x: X(NAVE.x0), y: Z(NAVE.zMin), width: (ROOM.x0 - ARCH.depth - NAVE.x0) * S, height: (NAVE.zMax - NAVE.zMin) * S, fill: '#1a1815', stroke: '#3a352e', 'stroke-dasharray': '6 5' });
+el('text', { x: X(NAVE.x0) + 14, y: Z(NAVE.zMin) + 24, fill: 'rgba(243,236,223,.45)', 'font-size': 13 }, 'główna nawa (zgadnięta)');
+el('path', { d, fill: 'none', stroke: '#9fd2ff', 'stroke-width': 7, 'stroke-linecap': 'round', opacity: 0.85 });
+el('line', { x1: X(ROOM.x0), y1: Z(WALL.pilaster.z - 0.25), x2: X(ROOM.x0), y2: Z(ARCH.z - ARCH.w / 2), stroke: '#c0623e', 'stroke-width': 9 });
+el('line', { x1: X(ROOM.x0), y1: Z(ARCH.z + ARCH.w / 2), x2: X(ROOM.x0), y2: Z(ROOM.zBack), stroke: '#c0623e', 'stroke-width': 9 });
+el('line', { x1: X(ROOM.x0), y1: Z(ROOM.zBack), x2: X(4.05), y2: Z(ROOM.zBack), stroke: '#c0623e', 'stroke-width': 9 });
+el('rect', { x: X(-0.95), y: Z(ROOM.zBack) - 4, width: 1.9 * S, height: 8, fill: '#8a5a34' });
+el('rect', { x: X(ROOM.x0), y: Z(WALL.pilaster.z - WALL.pilaster.d / 2), width: WALL.pilaster.w * S, height: WALL.pilaster.d * S, fill: '#c0623e' });
+el('ellipse', { cx: X(DOME.x), cy: Z(DOME.z), rx: DOME.a * S, ry: DOME.b * S, fill: 'none', stroke: '#e2b25a', 'stroke-width': 2, 'stroke-dasharray': '7 6' });
+el('rect', { x: X(-4.4), y: Z(ALTAR.step.z0), width: 8.8 * S, height: (ALTAR.step.z1 - ALTAR.step.z0) * S, fill: 'rgba(243,236,223,.05)' });
+const me = ALTAR.mensa, rt = ALTAR.retable;
+el('rect', { x: X(-me.w / 2), y: Z(me.z - me.d / 2), width: me.w * S, height: me.d * S, fill: '#e9e3d6' });
+el('rect', { x: X(-rt.w / 2), y: Z(rt.z - rt.d / 2), width: rt.w * S, height: rt.d * S, fill: '#c0623e' });
+for (let r = 0; r < PEWS.rows; r++) for (const [a, b] of [PEWS.left, PEWS.right]) {
+  const z = PEWS.z0 + r * PEWS.pitch;
+  el('rect', { x: X(a), y: Z(z - 0.22), width: (b - a) * S, height: 0.5 * S, rx: 3, fill: '#a8683a' });
+}
+for (const [n, , x, z] of ITEMS) {
+  el('circle', { cx: X(x), cy: Z(z), r: 12, fill: '#e2b25a' });
+  el('text', { x: X(x), y: Z(z) + 4.5, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: '#0b0a09' }, String(n));
+}
+const sc = el('g', {});
+el('line', { x1: 40, y1: 690, x2: 40 + 2 * S, y2: 690, stroke: '#f3ecdf', 'stroke-width': 2 });
+el('text', { x: 40, y: 680, fill: 'rgba(243,236,223,.6)', 'font-size': 12 }, '2 m');
+document.getElementById('legend').innerHTML = ITEMS.map(([n, t]) => `<li><b>${n}</b><span>${t}</span></li>`).join('');
+const L = ROOM.zBack - Math.min(...LATTICE.pts.map((p) => p[1]));
+document.getElementById('dims').innerHTML = `<p>Szerokość ok. ${(4.05 - ROOM.x0).toFixed(1).replace('.', ',')} m, długość ok. ${L.toFixed(1).replace('.', ',')} m, wysokość do sufitu ${String(H).replace('.', ',')} m.<br>Łuk: szer. ${String(ARCH.w).replace('.', ',')} m. Kopuła: owal ${(DOME.a * 2).toFixed(1).replace('.', ',')} × ${(DOME.b * 2).toFixed(1).replace('.', ',')} m.<br>Ławki: 2 bloki po ${PEWS.rows} rzędów, przejście środkiem.</p>`;
+</script>
+</body>
+</html>

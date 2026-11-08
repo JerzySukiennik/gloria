@@ -1,0 +1,134 @@
+{
+ "priest_voice": "Charon",
+ "priest_style": "Read aloud in Polish, as a warm, charismatic older Polish Catholic priest speaking to his parish in a small church. Natural, lively pace, no long pauses.",
+ "crowd_voices": [
+  "Kore",
+  "Aoede",
+  "Puck",
+  "Orus",
+  "Leda"
+ ],
+ "crowd_style": "Read aloud in Polish, as one older member of a Polish church congregation answering the priest together with everyone, natural and sincere.",
+ "lines": {
+  "p_intro": [
+   "p",
+   "slowly and solemnly, like a warm old Polish priest beginning Mass",
+   "W imię Ojca i Syna, i Ducha Świętego."
+  ],
+  "p_panzwami": [
+   "p",
+   "warmly, like a kind old Polish priest greeting his parish",
+   "Pan z wami."
+  ],
+  "p_hype": [
+   "p",
+   "playfully with a smile, then with rising energy at the end, like a charismatic old Polish priest",
+   "Kochani! Mówią, że msza jest nudna. To dzisiaj sprawdzimy. Niech ten kościół zaświeci!"
+  ],
+  "p_gloria": [
+   "p",
+   "joyfully and loudly, almost shouting with happiness, like an excited old Polish priest",
+   "Chwała na wysokości Bogu! Wszyscy razem!"
+  ],
+  "p_homily": [
+   "p",
+   "calmly and warmly, intimately, with a gentle smile, like a wise old Polish priest",
+   "Spójrzcie na tę ścianę. Każde okienko osobno to tylko kawałek szkła. Ale kiedy wpada przez nie słońce, cała ściana świeci. Z nami jest tak samo. Każdy z was jest takim okienkiem. A Bóg jest światłem. Wystarczy się otworzyć."
+  ],
+  "p_amenq": [
+   "p",
+   "playfully, as a question to the crowd, like a cheerful old Polish priest",
+   "Amen?"
+  ],
+  "p_amenq2": [
+   "p",
+   "playfully and louder, teasing the crowd, like a cheerful old Polish priest",
+   "Nie słyszę! Amen?"
+  ],
+  "p_pokoj": [
+   "p",
+   "joyfully and warmly, like a happy old Polish priest",
+   "Przekażcie sobie znak pokoju!"
+  ],
+  "p_cisza": [
+   "p",
+   "very quietly and reverently, almost whispering, slowly, like an old Polish priest",
+   "A teraz cisza. Najważniejsza chwila."
+  ],
+  "p_wstancie": [
+   "p",
+   "softly and moved at first, then rising to a strong joyful call, like an old Polish priest",
+   "On jest z nami. Wstańcie i chwalcie Pana!"
+  ],
+  "p_idzcie": [
+   "p",
+   "strongly and festively, like a joyful old Polish priest",
+   "Idźcie w pokoju Chrystusa!"
+  ],
+  "p_koniec": [
+   "p",
+   "laughing, delighted, like a warm old Polish priest",
+   "No i kto powiedział, że msza jest nudna?"
+  ],
+  "p_alleluja": [
+   "p",
+   "shouting with joy, like an old Polish priest",
+   "Alleluja!"
+  ],
+  "p_glosniej": [
+   "p",
+   "loudly, encouraging the crowd, like an old Polish priest",
+   "Głośniej!"
+  ],
+  "p_pieknie": [
+   "p",
+   "delighted, like an old Polish priest",
+   "Pięknie!"
+  ],
+  "p_brawo": [
+   "p",
+   "enthusiastically, like an old Polish priest",
+   "Brawo, kochani!"
+  ],
+  "p_jeszcze": [
+   "p",
+   "energetically, like an old Polish priest",
+   "Jeszcze raz!"
+  ],
+  "p_obudzcie": [
+   "p",
+   "humorously and a bit loud, teasing, like an old Polish priest",
+   "Obudźcie się tam z tyłu!"
+  ],
+  "p_halo": [
+   "p",
+   "humorously, surprised, like an old Polish priest",
+   "Halo? Jest tu kto?"
+  ],
+  "c_amen1": [
+   "c",
+   "calmly, like an elderly Polish churchgoer answering the priest",
+   "Amen."
+  ],
+  "c_izduchem": [
+   "c",
+   "calmly, like an elderly Polish churchgoer answering the priest",
+   "I z duchem twoim."
+  ],
+  "c_amen2": [
+   "c",
+   "happily and a bit louder, like a Polish churchgoer answering the priest",
+   "Amen!"
+  ],
+  "c_amen3": [
+   "c",
+   "shouting with joy, like a Polish churchgoer answering the priest",
+   "Amen!"
+  ],
+  "c_bogu": [
+   "c",
+   "joyfully and loudly, like a Polish churchgoer answering the priest",
+   "Bogu niech będą dzięki!"
+  ]
+ }
+}
