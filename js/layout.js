@@ -49,19 +49,34 @@ export const WALL = {
   pipe: { z: 0.95 },
 };
 
+
+
+export const HALL = { x0: -28.42, x1: -4.42, xc: -16.42, z0: -12.6, z1: 8.6, h: 8.6 };
+export const APSE = [[-27.9, -9.3], [-25.0, -11.4], [-16.42, -12.25], [-7.84, -11.4], [-4.94, -9.3]];
+export const STAGE = { x0: -25.2, x1: -7.64, z1: -6.6, h: 0.6 };
+export const HALTAR = { x: -16.42, z: -8.9, w: 3.2, d: 1.1, h: 1.0 };
+export const COLUMNS = [-6.4, -2.9, 4.0].flatMap((z) => [[-26.3, z], [-6.54, z]]);
+export const HPEWS = { rows: 10, z0: -2.4, pitch: 0.96, left: [-25.2, -17.5], right: [-15.34, -7.64] };
+export const PIT = { x0: -23.6, x1: -9.2, z0: -6.15, z1: -3.3 };
+export const LOFT = { z0: 6.95, y: 3.8, x0: -26.6, x1: -6.24 };
+export const HDOME = { x: -16.42, z: -3.6, a: 4.6, b: 3.1, rim: 0.45, drum: 1.4, win: 0.7, cap: 0.9 };
+export const BOTA = [{ x: -16.42, z: -0.6, len: 4.5 }, { x: -16.42, z: 4.4, len: 4.1 }];
+export const DISCO = { x: -16.42, y: 7.2, z: 1.9 };
+export const MIRROR_X = 2 * HALL.xc;
+
 export const ITEMS = [
-  [1, 'Lewa ściana z cegły', -4, 3.5],
-  [2, 'Łuk do głównej nawy', -4, ARCH.z],
-  [3, 'Kinkiety ze świecami', -4, WALL.sconces[0].z],
-  [4, 'Mozaika Chrystusa z tablicami', -4, WALL.mosaic.z],
-  [5, 'Krzyż z cegieł w reliefie', -4, WALL.cross.z],
-  [6, 'Drzwi', -4, WALL.door.z],
-  [7, 'Obraz i stacja w zielonej ramce', -4, WALL.painting.z],
-  [8, 'Pilaster z telewizorem', -3.6, WALL.pilaster.z],
-  [9, 'Ściana z kratownicy i mlecznego szkła', 4.05, 2.5],
-  [10, 'Owalna kopuła z okienkami', DOME.x, DOME.z],
-  [11, 'Ołtarz (mensa)', 0, ALTAR.mensa.z],
-  [12, 'Ceglane retabulum: Czarna Madonna, papież, wota', 0, ALTAR.retable.z],
-  [13, 'Ławki, 2 bloki po 8 rzędów', 1.95, 1.2],
-  [14, 'Wejście z tyłu, tu zaczynasz (zgadnięte)', 0, ROOM.zBack],
+  [1, 'Nawa główna, 24 m, 3× szersza od kaplicy', -12.6, 6.1],
+  [2, 'Kaplica prawa (ta ze zdjęć)', 0, 2.5],
+  [3, 'Kaplica lewa (taka sama, lustrzana)', MIRROR_X, 2.5],
+  [4, 'Łuki między nawą a kaplicami', -4.2, ARCH.z],
+  [5, 'Ściana z kratownicy nawy (ekran LED)', -16.42, -11.6],
+  [6, 'Scena z ołtarzem i konsoletą DJ', -16.42, -8.0],
+  [7, 'Miejsce pod sceną (tłum)', -12.5, -4.7],
+  [8, 'Ławki nawy, 2 bloki po 10 rzędów', -21.4, 2.0],
+  [9, 'Ceglane kolumny', -26.3, -2.9],
+  [10, 'Chór z organami nad wejściem', -21.0, 7.8],
+  [11, 'Wejście, tu zaczynasz', -16.42, 8.3],
+  [12, 'Kadzielnice na linach pod sufitem', -16.42, -0.6],
+  [13, 'Kula disco', -16.42, 1.9],
+  [14, 'Owalna kopuła nawy', -16.42, -3.6],
 ];

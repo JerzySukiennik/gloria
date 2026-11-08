@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gloria, rzut kaplicy</title>
+<title>Gloria, rzut kościoła</title>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <style>
   :root { --ink: #0b0a09; --ivory: #f3ecdf; --dim: rgba(243,236,223,.6); --gold: #e2b25a; }
   body { margin: 0; background: var(--ink); color: var(--ivory); font: 15px/1.5 -apple-system, system-ui, sans-serif; }
-  main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); gap: 36px; padding: 36px; max-width: 1280px; margin: 0 auto; }
+  main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 36px; padding: 36px; max-width: 1280px; margin: 0 auto; }
   h1 { font: 400 44px/1 "New York", ui-serif, Georgia, serif; margin: 0 0 6px; }
   p { color: var(--dim); margin: 0 0 18px; }
   svg { width: 100%; height: auto; background: #12110f; border-radius: 18px; }
@@ -22,8 +22,8 @@
 <body>
 <main>
   <section>
-    <h1>Rzut kaplicy</h1>
-    <p>Tak odczytałem układ z Twoich 16 zdjęć. Ołtarz na górze, wejście na dole, widok z góry. Popraw numery, które się nie zgadzają.</p>
+    <h1>Rzut kościoła</h1>
+    <p>Nawa główna pośrodku, kaplice ze zdjęć po bokach. Ołtarze na górze, wejście na dole, widok z góry. Popraw numery, które się nie zgadzają.</p>
     <svg id="plan" viewBox="0 0 640 720"></svg>
   </section>
   <aside>
@@ -33,42 +33,58 @@
 </main>
 <script type="module">
 import * as THREE from 'three';
-import { H, ROOM, LATTICE, ARCH, NAVE, DOME, ALTAR, PEWS, WALL, ITEMS } from './js/layout.js';
+import { H, ROOM, LATTICE, ARCH, PEWS, WALL, ALTAR, DOME, HALL, APSE, STAGE, HALTAR, COLUMNS, HPEWS, PIT, LOFT, HDOME, BOTA, DISCO, MIRROR_X, ITEMS } from './js/layout.js';
 import { frameAt } from './js/util.js';
 const svg = document.getElementById('plan');
-const S = 40, OX = 440, OZ = 260;
+const S = 17, OX = 20 + 37.6 * S, OZ = 26 + 12.8 * S;
+svg.setAttribute('viewBox', `0 0 ${Math.round(42.5 * S + 40)} ${Math.round(21.8 * S + 60)}`);
 const X = (x) => OX + x * S, Z = (z) => OZ + z * S;
 const el = (tag, a, txt) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in a) e.setAttribute(k, a[k]); if (txt) e.textContent = txt; svg.appendChild(e); return e; };
-const curve = new THREE.CatmullRomCurve3(LATTICE.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
-let d = '';
-for (let i = 0; i <= 120; i++) { const { p } = frameAt(curve, i / 120); d += (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Z(p.z).toFixed(1); }
-el('rect', { x: X(NAVE.x0), y: Z(NAVE.zMin), width: (ROOM.x0 - ARCH.depth - NAVE.x0) * S, height: (NAVE.zMax - NAVE.zMin) * S, fill: '#1a1815', stroke: '#3a352e', 'stroke-dasharray': '6 5' });
-el('text', { x: X(NAVE.x0) + 14, y: Z(NAVE.zMin) + 24, fill: 'rgba(243,236,223,.45)', 'font-size': 13 }, 'główna nawa (zgadnięta)');
-el('path', { d, fill: 'none', stroke: '#9fd2ff', 'stroke-width': 7, 'stroke-linecap': 'round', opacity: 0.85 });
-el('line', { x1: X(ROOM.x0), y1: Z(WALL.pilaster.z - 0.25), x2: X(ROOM.x0), y2: Z(ARCH.z - ARCH.w / 2), stroke: '#c0623e', 'stroke-width': 9 });
-el('line', { x1: X(ROOM.x0), y1: Z(ARCH.z + ARCH.w / 2), x2: X(ROOM.x0), y2: Z(ROOM.zBack), stroke: '#c0623e', 'stroke-width': 9 });
-el('line', { x1: X(ROOM.x0), y1: Z(ROOM.zBack), x2: X(4.05), y2: Z(ROOM.zBack), stroke: '#c0623e', 'stroke-width': 9 });
-el('rect', { x: X(-0.95), y: Z(ROOM.zBack) - 4, width: 1.9 * S, height: 8, fill: '#8a5a34' });
-el('rect', { x: X(ROOM.x0), y: Z(WALL.pilaster.z - WALL.pilaster.d / 2), width: WALL.pilaster.w * S, height: WALL.pilaster.d * S, fill: '#c0623e' });
-el('ellipse', { cx: X(DOME.x), cy: Z(DOME.z), rx: DOME.a * S, ry: DOME.b * S, fill: 'none', stroke: '#e2b25a', 'stroke-width': 2, 'stroke-dasharray': '7 6' });
-el('rect', { x: X(-4.4), y: Z(ALTAR.step.z0), width: 8.8 * S, height: (ALTAR.step.z1 - ALTAR.step.z0) * S, fill: 'rgba(243,236,223,.05)' });
-const me = ALTAR.mensa, rt = ALTAR.retable;
-el('rect', { x: X(-me.w / 2), y: Z(me.z - me.d / 2), width: me.w * S, height: me.d * S, fill: '#e9e3d6' });
-el('rect', { x: X(-rt.w / 2), y: Z(rt.z - rt.d / 2), width: rt.w * S, height: rt.d * S, fill: '#c0623e' });
-for (let r = 0; r < PEWS.rows; r++) for (const [a, b] of [PEWS.left, PEWS.right]) {
-  const z = PEWS.z0 + r * PEWS.pitch;
-  el('rect', { x: X(a), y: Z(z - 0.22), width: (b - a) * S, height: 0.5 * S, rx: 3, fill: '#a8683a' });
+const path = (pts, center, mirror) => {
+  const c = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+  let d = '';
+  for (let i = 0; i <= 100; i++) { const { p } = frameAt(c, i / 100, center); const x = mirror ? MIRROR_X - p.x : p.x; d += (i ? 'L' : 'M') + X(x).toFixed(1) + ' ' + Z(p.z).toFixed(1); }
+  return d;
+};
+const brick = '#c0623e', glass = '#9fd2ff';
+el('rect', { x: X(HALL.x0), y: Z(HALL.z0), width: (HALL.x1 - HALL.x0) * S, height: (HALL.z1 - HALL.z0) * S, fill: '#17150f' });
+for (const m of [false, true]) {
+  el('path', { d: path(LATTICE.pts, null, m), fill: 'none', stroke: glass, 'stroke-width': 4, 'stroke-linecap': 'round' });
+  const xw = m ? MIRROR_X - ROOM.x0 : ROOM.x0, xb = m ? MIRROR_X - 4.05 : 4.05;
+  el('line', { x1: X(xw), y1: Z(-5.4), x2: X(xw), y2: Z(ARCH.z - ARCH.w / 2), stroke: brick, 'stroke-width': 5 });
+  el('line', { x1: X(xw), y1: Z(ARCH.z + ARCH.w / 2), x2: X(xw), y2: Z(ROOM.zBack), stroke: brick, 'stroke-width': 5 });
+  el('line', { x1: X(xw), y1: Z(ROOM.zBack), x2: X(xb), y2: Z(ROOM.zBack), stroke: brick, 'stroke-width': 5 });
+  for (let r = 0; r < PEWS.rows; r++) for (const [a, b] of [PEWS.left, PEWS.right]) {
+    const xa = m ? MIRROR_X - b : a, w = b - a;
+    el('rect', { x: X(xa), y: Z(PEWS.z0 + r * PEWS.pitch - 0.22), width: w * S, height: 0.45 * S, rx: 1.5, fill: '#a8683a' });
+  }
+  const dx = m ? MIRROR_X - DOME.x : DOME.x;
+  el('ellipse', { cx: X(dx), cy: Z(DOME.z), rx: DOME.a * S, ry: DOME.b * S, fill: 'none', stroke: '#e2b25a', 'stroke-width': 1.2, 'stroke-dasharray': '4 4' });
+  el('rect', { x: X(m ? MIRROR_X - 0.9 : -0.9), y: Z(ALTAR.mensa.z - 0.4), width: 1.8 * S, height: 0.8 * S, fill: '#e9e3d6' });
 }
+el('path', { d: path(APSE, [HALL.xc, 0]), fill: 'none', stroke: glass, 'stroke-width': 6, 'stroke-linecap': 'round' });
+for (const x of [HALL.x0, HALL.x1]) {
+  el('line', { x1: X(x), y1: Z(-9.4), x2: X(x), y2: Z(ARCH.z - ARCH.w / 2), stroke: brick, 'stroke-width': 6 });
+  el('line', { x1: X(x), y1: Z(ARCH.z + ARCH.w / 2), x2: X(x), y2: Z(HALL.z1), stroke: brick, 'stroke-width': 6 });
+}
+el('line', { x1: X(HALL.x0), y1: Z(HALL.z1), x2: X(HALL.x1), y2: Z(HALL.z1), stroke: brick, 'stroke-width': 6 });
+el('rect', { x: X(HALL.xc - 1.3), y: Z(HALL.z1) - 3, width: 2.6 * S, height: 6, fill: '#8a5a34' });
+el('path', { d: `M${X(STAGE.x0)} ${Z(STAGE.z1)} L${X(STAGE.x1)} ${Z(STAGE.z1)} L${X(STAGE.x1 + 0.6)} ${Z(-9.6)} L${X(HALL.xc)} ${Z(-12)} L${X(STAGE.x0 - 0.6)} ${Z(-9.6)} Z`, fill: 'rgba(243,236,223,.08)', stroke: 'rgba(243,236,223,.3)' });
+el('rect', { x: X(HALTAR.x - HALTAR.w / 2), y: Z(HALTAR.z - HALTAR.d / 2), width: HALTAR.w * S, height: HALTAR.d * S, fill: '#e9e3d6' });
+el('rect', { x: X(PIT.x0), y: Z(PIT.z0), width: (PIT.x1 - PIT.x0) * S, height: (PIT.z1 - PIT.z0) * S, fill: 'none', stroke: '#e2b25a', 'stroke-dasharray': '3 4' });
+el('rect', { x: X(LOFT.x0), y: Z(LOFT.z0), width: (LOFT.x1 - LOFT.x0) * S, height: (HALL.z1 - LOFT.z0) * S, fill: 'none', stroke: 'rgba(243,236,223,.35)', 'stroke-dasharray': '6 4' });
+for (let r = 0; r < HPEWS.rows; r++) for (const [a, b] of [HPEWS.left, HPEWS.right]) el('rect', { x: X(a), y: Z(HPEWS.z0 + r * HPEWS.pitch - 0.22), width: (b - a) * S, height: 0.45 * S, rx: 1.5, fill: '#a8683a' });
+for (const [cx, cz] of COLUMNS) el('circle', { cx: X(cx), cy: Z(cz), r: 0.45 * S, fill: '#5a3a2e' });
+el('ellipse', { cx: X(HDOME.x), cy: Z(HDOME.z), rx: HDOME.a * S, ry: HDOME.b * S, fill: 'none', stroke: '#e2b25a', 'stroke-width': 1.5, 'stroke-dasharray': '5 5' });
+for (const b of BOTA) el('line', { x1: X(b.x - 4), y1: Z(b.z), x2: X(b.x + 4), y2: Z(b.z), stroke: '#d8b062', 'stroke-width': 1, 'stroke-dasharray': '2 3' });
 for (const [n, , x, z] of ITEMS) {
-  el('circle', { cx: X(x), cy: Z(z), r: 12, fill: '#e2b25a' });
-  el('text', { x: X(x), y: Z(z) + 4.5, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: '#0b0a09' }, String(n));
+  el('circle', { cx: X(x), cy: Z(z), r: 10, fill: '#e2b25a' });
+  el('text', { x: X(x), y: Z(z) + 4, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: '#0b0a09' }, String(n));
 }
-const sc = el('g', {});
-el('line', { x1: 40, y1: 690, x2: 40 + 2 * S, y2: 690, stroke: '#f3ecdf', 'stroke-width': 2 });
-el('text', { x: 40, y: 680, fill: 'rgba(243,236,223,.6)', 'font-size': 12 }, '2 m');
+el('line', { x1: 30, y1: Z(HALL.z1) + 40, x2: 30 + 5 * S, y2: Z(HALL.z1) + 40, stroke: '#f3ecdf', 'stroke-width': 2 });
+el('text', { x: 30, y: Z(HALL.z1) + 32, fill: 'rgba(243,236,223,.6)', 'font-size': 12 }, '5 m');
 document.getElementById('legend').innerHTML = ITEMS.map(([n, t]) => `<li><b>${n}</b><span>${t}</span></li>`).join('');
-const L = ROOM.zBack - Math.min(...LATTICE.pts.map((p) => p[1]));
-document.getElementById('dims').innerHTML = `<p>Szerokość ok. ${(4.05 - ROOM.x0).toFixed(1).replace('.', ',')} m, długość ok. ${L.toFixed(1).replace('.', ',')} m, wysokość do sufitu ${String(H).replace('.', ',')} m.<br>Łuk: szer. ${String(ARCH.w).replace('.', ',')} m. Kopuła: owal ${(DOME.a * 2).toFixed(1).replace('.', ',')} × ${(DOME.b * 2).toFixed(1).replace('.', ',')} m.<br>Ławki: 2 bloki po ${PEWS.rows} rzędów, przejście środkiem.</p>`;
+document.getElementById('dims').innerHTML = `<p>Nawa główna: ${(HALL.x1 - HALL.x0).toFixed(0)} × ${(HALL.z1 - HALL.z0).toFixed(1).replace('.', ',')} m, wysokość ${String(HALL.h).replace('.', ',')} m. Kaplice: ok. 8 × 12,5 m, wysokość ${String(H).replace('.', ',')} m.<br>Całość: ok. 42 m szerokości. Rozmiary nawy, scena, chór i kolumny są wymyślone, popraw, co się nie zgadza.</p>`;
 </script>
 </body>
 </html>

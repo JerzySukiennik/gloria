@@ -128,11 +128,11 @@ export function buildLattice(mats, uniforms, toSun, opts = {}) {
   const cols = [];
   for (let c = 0; c < N; c++) {
     const u = (c + 0.5) / N;
-    const f = frameAt(curve, u);
+    const f = frameAt(curve, u, opts.center);
     cols.push({ c, u, ...f, pat: patternOf(c), sunF: Math.max(0, -f.n.dot(toSun)) });
     counts[patternOf(c)]++;
   }
-  const concrete = mats.lattice;
+  const concrete = opts.material || mats.lattice;
   const meshes = geos.map((g, i) => {
     const m = new THREE.InstancedMesh(g, concrete, Math.max(1, counts[i]));
     m.count = counts[i];
@@ -163,7 +163,7 @@ export function buildLattice(mats, uniforms, toSun, opts = {}) {
   const back = LATTICE.depth / 2 - 0.035;
   for (let i = 0; i <= segs; i++) {
     const u = i / segs;
-    const f = frameAt(curve, u);
+    const f = frameAt(curve, u, opts.center);
     const sf = Math.max(0, -f.n.dot(toSun));
     for (const y of [LATTICE.y0 - 0.02, LATTICE.y1 + 0.02]) {
       pos.push(f.p.x - f.n.x * back, y, f.p.z - f.n.z * back);
@@ -200,13 +200,13 @@ export function buildLattice(mats, uniforms, toSun, opts = {}) {
   group.add(glass);
 
   const d2 = LATTICE.depth / 2;
-  const sill = new THREE.Mesh(sweepCurve(curve, [[d2, 0], [d2, LATTICE.y0], [-d2, LATTICE.y0]], N * 2, 1.2), mats.concreteBand);
+  const sill = new THREE.Mesh(sweepCurve(curve, [[d2, 0], [d2, LATTICE.y0], [-d2, LATTICE.y0]], N * 2, 1.2, opts.center), mats.concreteBand);
   sill.receiveShadow = true; sill.castShadow = !opts.noShadow;
   group.add(sill);
   if (!opts.noTop) {
     const prof = [[-d2, LATTICE.y1], [d2, LATTICE.y1], [d2, H - 0.26]];
     for (let i = 1; i <= 6; i++) { const a = (i / 6) * Math.PI / 2; prof.push([d2 + 0.26 - Math.cos(a) * 0.26, H - 0.26 + Math.sin(a) * 0.26]); }
-    const top = new THREE.Mesh(sweepCurve(curve, prof, N * 2, 1.2), mats.concreteBand);
+    const top = new THREE.Mesh(sweepCurve(curve, prof, N * 2, 1.2, opts.center), mats.concreteBand);
     top.castShadow = !opts.noShadow; top.receiveShadow = true;
     group.add(top);
   }
@@ -225,8 +225,9 @@ export function buildLattice(mats, uniforms, toSun, opts = {}) {
   }
 
   let center = 0, best = 1e9;
-  for (const col of cols) { const d = Math.hypot(col.p.x, col.p.z + 5.7); if (d < best && col.n.z > 0.8) { best = d; center = col.c; } }
-  if (!opts.noShadow) uniforms.uCenterCol.value = center;
+  const cc = opts.crossAt || [0, -5.7];
+  for (const col of cols) { const d = Math.hypot(col.p.x - cc[0], col.p.z - cc[1]); if (d < best && col.n.z > 0.8) { best = d; center = col.c; } }
+  if (!opts.keepCenter) uniforms.uCenterCol.value = center;
   return { group, curve, N, cols, slots, glass, meshes, center };
 }
 

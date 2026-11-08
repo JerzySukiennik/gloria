@@ -1,9 +1,9 @@
 // Gloria first-person player: walk the chapel, look around, sit down in a free pew seat, jump to the beat.
 import * as THREE from 'three';
-import { LATTICE, ARCH, NAVE, PEWS, ALTAR, WALL, ROOM } from './layout.js';
+import { LATTICE, ARCH, NAVE, PEWS, ALTAR, WALL, ROOM, HALL, APSE, STAGE, HALTAR, COLUMNS, HPEWS, MIRROR_X } from './layout.js';
 import { frameAt, clamp, lerp, damp } from './util.js';
 
-const CELL = 0.08, X0 = -10.6, Z0 = -6.4, NX = 192, NZ = 172, R = 0.22;
+const CELL = 0.1, X0 = -37.6, Z0 = -12.8, NX = 424, NZ = 218, R = 0.22;
 
 function insidePoly(poly, x, z) {
   let c = false;
@@ -19,7 +19,7 @@ export class Player {
     this.cam = camera;
     this.dom = dom;
     this.seats = seats;
-    this.pos = new THREE.Vector3(0.15, 0, 6.05);
+    this.pos = new THREE.Vector3(HALL.xc, 0, HALL.z1 - 0.9);
     this.yaw = 0;
     this.pitch = 0.04;
     this.vel = new THREE.Vector2();
@@ -44,30 +44,40 @@ export class Player {
       const { p, n } = frameAt(curve, i / 120);
       inner.push([p.x + n.x * (LATTICE.depth / 2 + 0.04), p.z + n.z * (LATTICE.depth / 2 + 0.04)]);
     }
+    const chapel = [...inner, [inner[inner.length - 1][0], ROOM.zBack - 0.08], [ROOM.x0 + 0.04, ROOM.zBack - 0.08], [ROOM.x0 + 0.04, WALL.pilaster.z + WALL.pilaster.d / 2 + 0.02], [ROOM.x0 + WALL.pilaster.w, WALL.pilaster.z + WALL.pilaster.d / 2 + 0.02], [ROOM.x0 + WALL.pilaster.w, inner[0][1] + 0.1]];
+    const chapelL = chapel.map(([x, z]) => [MIRROR_X - x, z]);
+    const apse = new THREE.CatmullRomCurve3(APSE.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+    const hall = [];
+    for (let i = 0; i <= 80; i++) {
+      const { p, n } = frameAt(apse, i / 80, [HALL.xc, 0]);
+      hall.push([p.x + n.x * 0.32, p.z + n.z * 0.32]);
+    }
+    hall.push([HALL.x1 - 0.06, -9.0], [HALL.x1 - 0.06, HALL.z1 - 0.08], [HALL.x0 + 0.06, HALL.z1 - 0.08], [HALL.x0 + 0.06, -9.0]);
     const az0 = ARCH.z - ARCH.w / 2 + 0.12, az1 = ARCH.z + ARCH.w / 2 - 0.12;
-    const poly = [...inner, [inner[inner.length - 1][0], ROOM.zBack - 0.08], [ROOM.x0 + 0.04, ROOM.zBack - 0.08], [ROOM.x0 + 0.04, az1], [NAVE.x0 + 1.2, az1 + 0.0],
-      [NAVE.x0 + 1.2, NAVE.zMax - 0.25], [ROOM.x0 - 0.5, NAVE.zMax - 0.25], [ROOM.x0 - 0.5, NAVE.zMin + 0.3], [NAVE.x0 + 3.0, NAVE.zMin + 0.3], [NAVE.x0 + 1.6, NAVE.zMin + 2.3],
-      [NAVE.x0 + 1.2, az0], [ROOM.x0 + 0.04, az0], [ROOM.x0 + 0.04, WALL.pilaster.z + WALL.pilaster.d / 2 + 0.02], [ROOM.x0 + WALL.pilaster.w, WALL.pilaster.z + WALL.pilaster.d / 2 + 0.02],
-      [ROOM.x0 + WALL.pilaster.w, inner[0][1] + 0.1]];
+    const passR = [[ROOM.x0 - 0.6, az0], [ROOM.x0 + 0.3, az0], [ROOM.x0 + 0.3, az1], [ROOM.x0 - 0.6, az1]];
+    const passL = passR.map(([x, z]) => [MIRROR_X - x, z]);
+    const polys = [chapel, chapelL, hall, passR, passL];
     const boxes = [];
-    const box = (x0, x1, z0, z1) => boxes.push([x0, x1, z0, z1]);
+    const box = (x0, x1, z0, z1, mirror = false) => { boxes.push([x0, x1, z0, z1]); if (mirror) boxes.push([MIRROR_X - x1, MIRROR_X - x0, z0, z1]); };
     const lastZ = PEWS.z0 + (PEWS.rows - 1) * PEWS.pitch;
-    for (const [xa, xb] of [PEWS.left, PEWS.right]) box(xa - 0.05, xb + 0.05, PEWS.z0 - 0.24, lastZ + 0.7);
+    for (const [xa, xb] of [PEWS.left, PEWS.right]) box(xa - 0.05, xb + 0.05, PEWS.z0 - 0.24, lastZ + 0.7, true);
+    const hLast = HPEWS.z0 + (HPEWS.rows - 1) * HPEWS.pitch;
+    for (const [xa, xb] of [HPEWS.left, HPEWS.right]) box(xa - 0.05, xb + 0.05, HPEWS.z0 - 0.24, hLast + 0.7);
     const me = ALTAR.mensa, rt = ALTAR.retable;
-    box(-me.w / 2, me.w / 2, me.z - me.d / 2, me.z + me.d / 2);
-    box(-rt.w / 2, rt.w / 2, rt.z - rt.d / 2 - 0.05, rt.z + rt.d / 2);
-    box(ALTAR.priest.x - 0.3, ALTAR.priest.x + 0.3, ALTAR.priest.z - 0.25, ALTAR.priest.z + 0.25);
-    box(ALTAR.server.x - 0.28, ALTAR.server.x + 0.28, ALTAR.server.z - 0.28, ALTAR.server.z + 0.28);
-    box(-1.65 - 0.25, -1.65 + 0.25, -4.95 - 0.25, -4.95 + 0.25);
-    box(1.9 - 0.25, 1.9 + 0.25, -4.8 - 0.25, -4.8 + 0.25);
-    const xw = ROOM.x0 - ARCH.depth;
-    box(xw - 1.1 - 0.3, xw - 1.1 + 0.3, ARCH.z + 1.05 - 0.3, ARCH.z + 1.05 + 0.3);
-    box(xw - 2.6 - 0.45, xw - 2.6 + 0.45, ARCH.z - 1.2 - 0.45, ARCH.z - 1.2 + 0.45);
-    box(xw - 3.6 - 0.72, xw - 3.6 + 0.72, ARCH.z + 0.3 - 0.37, ARCH.z + 0.3 + 0.37);
+    box(-me.w / 2, me.w / 2, me.z - me.d / 2, me.z + me.d / 2, true);
+    box(-rt.w / 2, rt.w / 2, rt.z - rt.d / 2 - 0.05, rt.z + rt.d / 2, true);
+    box(ALTAR.server.x - 0.28, ALTAR.server.x + 0.28, ALTAR.server.z - 0.28, ALTAR.server.z + 0.28, true);
+    box(ALTAR.priest.x - 0.3, ALTAR.priest.x + 0.3, ALTAR.priest.z - 0.25, ALTAR.priest.z + 0.25, true);
+    box(-1.65 - 0.25, -1.65 + 0.25, -4.95 - 0.25, -4.95 + 0.25, true);
+    box(1.9 - 0.25, 1.9 + 0.25, -4.8 - 0.25, -4.8 + 0.25, true);
+    box(HALTAR.x - HALTAR.w / 2, HALTAR.x + HALTAR.w / 2, HALTAR.z - HALTAR.d / 2, HALTAR.z + HALTAR.d / 2);
+    for (const [cx, cz] of COLUMNS) box(cx - 0.48, cx + 0.48, cz - 0.48, cz + 0.48);
+    for (const px of [HALL.x1 - 0.3, HALL.x0 + 0.3]) for (const dz of [-1.95, 1.95]) box(px - 0.28, px + 0.28, ARCH.z + dz - 0.28, ARCH.z + dz + 0.28);
     const inside = new Uint8Array(NX * NZ);
     for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
       const x = X0 + (i + 0.5) * CELL, z = Z0 + (j + 0.5) * CELL;
-      let ok = insidePoly(poly, x, z);
+      let ok = false;
+      for (const pg of polys) if (insidePoly(pg, x, z)) { ok = true; break; }
       if (ok) for (const [a, b, c, d] of boxes) if (x > a && x < b && z > c && z < d) { ok = false; break; }
       inside[j * NX + i] = ok ? 1 : 0;
     }
@@ -201,7 +211,13 @@ export class Player {
     this.seat = null;
   }
 
-  stepHeight(x, z) { return z < ALTAR.step.z1 && z > ALTAR.step.z0 && Math.abs(x) < 4.4 ? ALTAR.step.h : 0; }
+  stepHeight(x, z) {
+    if (x > -4.2) return z < ALTAR.step.z1 && z > ALTAR.step.z0 ? ALTAR.step.h : 0;
+    if (x < MIRROR_X + 4.2) return z < ALTAR.step.z1 && z > ALTAR.step.z0 ? ALTAR.step.h : 0;
+    if (z < STAGE.z1 && x > STAGE.x0 - 0.6 && x < STAGE.x1 + 0.6) return STAGE.h;
+    if (z < STAGE.z1 + 0.55 && Math.abs(x - HALL.xc) < 2.1) return 0.3;
+    return 0;
+  }
 
   update(dt, t, beatPhase, rave) {
     const k = this.keys;

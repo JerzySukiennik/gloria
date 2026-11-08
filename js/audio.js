@@ -13,17 +13,42 @@ export class AudioEngine {
     this.muted = false;
   }
 
-  async prefetch(onProgress) {
-    const list = [['ameno', 'assets/audio/ameno.mp3'], ...SAMPLES.map((n) => [n, `assets/audio/${n}.mp3`]), ['ir', 'assets/audio/ir.wav'], ...VOICES.map((n) => [n, `assets/voice/${n}.mp3`])];
-    const sizes = { ameno: 12 };
-    const total = list.reduce((a, [n]) => a + (sizes[n] || 1), 0);
+  async prefetch(songs, onProgress) {
+    const list = [...SAMPLES.map((n) => [n, `assets/audio/${n}.mp3`]), ['ir', 'assets/audio/ir.wav'], ...VOICES.map((n) => [n, `assets/voice/${n}.mp3`]), ...songs.map((k) => [`preview-${k}`, `assets/audio/preview-${k}.mp3`])];
     let done = 0;
     await Promise.all(list.map(async ([n, url]) => {
       const r = await fetch(url);
       this.raw.set(n, await r.arrayBuffer());
-      done += sizes[n] || 1;
-      onProgress && onProgress(done / total);
+      done++;
+      onProgress && onProgress(done / list.length);
     }));
+    this.songRaw = new Map();
+    for (const k of songs) this.songRaw.set(k, fetch(`assets/audio/song-${k}.mp3`).then((r) => r.arrayBuffer()));
+  }
+
+  async loadSong(k) {
+    const ab = await this.songRaw.get(k);
+    this.buf.set('song', await this.ctx.decodeAudioData(ab.slice(0)));
+  }
+
+  preview(k) {
+    this.stopPreview();
+    const h = this.play(`preview-${k}`, this.now, { bus: this.song, gain: 0.0001, loop: true, attack: 0.01 });
+    if (!h) return;
+    h.g.gain.cancelScheduledValues(this.now);
+    h.g.gain.setValueAtTime(0.0001, this.now);
+    h.g.gain.linearRampToValueAtTime(0.9, this.now + 0.35);
+    this.prev = h;
+  }
+
+  stopPreview(fade = 0.3) {
+    const h = this.prev;
+    if (!h) return;
+    h.g.gain.cancelScheduledValues(this.now);
+    h.g.gain.setValueAtTime(h.g.gain.value, this.now);
+    h.g.gain.linearRampToValueAtTime(0, this.now + fade);
+    try { h.src.stop(this.now + fade + 0.05); } catch (e) {}
+    this.prev = null;
   }
 
   async start() {
@@ -139,9 +164,9 @@ export class AudioEngine {
 
   playSong(t, offset = 0) {
     this.stopSong();
-    this.songH = this.play('ameno', t, { bus: this.song, gain: 1, attack: 0.02, offset });
+    this.songH = this.play('song', t, { bus: this.song, gain: 1, attack: 0.02, offset });
     this.songStart = t - offset;
-    return this.buf.get('ameno').duration;
+    return this.buf.get('song').duration;
   }
 
   stopSong(fade = 0.05) {

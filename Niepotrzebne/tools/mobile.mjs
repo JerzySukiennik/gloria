@@ -12,7 +12,7 @@ const page = await ctx.newPage();
 const errs = [];
 page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 200)); });
 page.on('pageerror', (e) => errs.push('pageerror ' + e.message.slice(0, 200)));
-await page.goto('http://localhost:8851/?skip&at=60', { waitUntil: 'domcontentloaded', timeout: 90000 });
+await page.goto('http://localhost:8851/' + (process.env.Q || '?old&song=techno&skip&at=24'), { waitUntil: 'domcontentloaded', timeout: 90000 });
 await page.waitForFunction(() => window.__gl && window.__gl.ready, null, { timeout: 90000 }).catch(() => errs.push('not ready'));
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${outDir}/m-${engine}-1.png` });

@@ -1,6 +1,6 @@
 // Gloria effects: incense smoke, sunbeams through the slots, moving-head beams from the dome, the altar ray and falling gold.
 import * as THREE from 'three';
-import { H, DOME, ALTAR, ROOM } from './layout.js';
+import { H, DOME, ALTAR, ROOM, HALL } from './layout.js';
 import { rnd, canvasTex } from './util.js';
 
 const puffTex = () => canvasTex(128, 128, (c, w, h) => {
@@ -124,8 +124,8 @@ export class SunBeams {
     const up = new THREE.Vector3(0, 1, 0);
     slots.forEach((s, i) => {
       const c = s.center;
-      let len = 12;
-      if (d.x < 0) len = Math.min(len, (c.x - (ROOM.x0 + 0.02)) / -d.x);
+      let len = s.maxLen ?? 12;
+      if (d.x < 0) len = Math.min(len, (c.x - (s.xMin ?? ROOM.x0 + 0.02)) / -d.x);
       if (d.y < 0) len = Math.min(len, (c.y - 0.01) / -d.y);
       const X = s.t.clone().multiplyScalar(0.17);
       const Y = up.clone().multiplyScalar(s.len * 0.92);
@@ -236,9 +236,9 @@ export class Glitter {
   }
   reset(i, r, init) {
     const a = r() * Math.PI * 2, rr = Math.sqrt(r());
-    this.pos[i * 3] = DOME.x + Math.cos(a) * rr * DOME.a * 1.6;
-    this.pos[i * 3 + 1] = init ? r() * H : H + 0.8 + r() * 0.5;
-    this.pos[i * 3 + 2] = DOME.z + 2.2 + Math.sin(a) * rr * 4.5;
+    this.pos[i * 3] = HALL.xc + Math.cos(a) * rr * 10;
+    this.pos[i * 3 + 1] = init ? r() * HALL.h : HALL.h - 0.3 - r() * 0.4;
+    this.pos[i * 3 + 2] = -1.5 + Math.sin(a) * rr * 6.5;
     this.vel[i] = 0.35 + r() * 0.4;
   }
   update(dt, t) {

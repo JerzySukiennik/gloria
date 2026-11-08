@@ -8,3 +8,6 @@ Niepotrzebne/music/*.json
 **/*.pcm
 **/*.webm
 node_modules/
+Niepotrzebne/music/**/*.wav
+Niepotrzebne/music/kandydaci/
+Niepotrzebne/odsluch/

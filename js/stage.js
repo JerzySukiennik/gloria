@@ -7,7 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { buildChurch } from './church.js';
-import { H, DOME, ALTAR, PEWS, SEAT, WALL } from './layout.js';
+import { H, DOME, ALTAR, PEWS, SEAT, WALL, HALL, HDOME, HALTAR, STAGE, MIRROR_X } from './layout.js';
 
 export const TO_SUN = new THREE.Vector3(0.94, 0.2, 0.27).normalize();
 
@@ -26,7 +26,7 @@ export class Stage {
     r.toneMapping = new URLSearchParams(location.search).get('tm') === 'agx' ? THREE.AgXToneMapping : THREE.NeutralToneMapping;
     r.toneMappingExposure = 0.9;
     r.shadowMap.enabled = true;
-    r.shadowMap.type = THREE.PCFSoftShadowMap;
+    r.shadowMap.type = THREE.PCFShadowMap;
     r.shadowMap.autoUpdate = false;
     this.renderer = r;
     this.maxPR = Math.min(window.devicePixelRatio || 1, quality === 'high' ? 1.5 : quality === 'mid' ? 1.25 : 1.0);
@@ -50,16 +50,16 @@ export class Stage {
   lights() {
     const s = this.scene;
     const sun = new THREE.DirectionalLight(0xffe2bd, 11);
-    sun.position.copy(TO_SUN).multiplyScalar(24).add(new THREE.Vector3(0, 0, 0));
-    sun.target.position.set(-1, 0, 0);
+    const target = new THREE.Vector3(-16, 0, 0);
+    sun.position.copy(TO_SUN).multiplyScalar(40).add(target);
+    sun.target.position.copy(target);
     sun.castShadow = true;
-    const sz = this.quality === 'low' ? 1024 : 2048;
+    const sz = this.quality === 'high' ? 4096 : 2048;
     sun.shadow.mapSize.set(sz, sz);
     const c = sun.shadow.camera;
-    c.left = -9; c.right = 9; c.top = 7; c.bottom = -7; c.near = 8; c.far = 40;
-    sun.shadow.bias = -0.0004;
-    sun.shadow.normalBias = 0.025;
-    sun.shadow.radius = 3;
+    c.left = -24; c.right = 24; c.top = 11; c.bottom = -11; c.near = 15; c.far = 75;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.03;
     s.add(sun, sun.target);
     this.sun = sun;
 
@@ -74,42 +74,49 @@ export class Stage {
       s.add(l);
       return l;
     };
+    const xc = HALL.xc;
     this.walls = [
-      rect(-0.2, 2.2, -5.45, 6.4, 3.6, -0.2, 0, 2.2),
-      rect(3.25, 2.2, -4.35, 2.6, 3.6, 0, -1.5, 2.6),
-      rect(3.82, 2.2, 1.6, 9.5, 3.6, 0, 1.6, 3.4),
+      rect(xc, 4.3, -11.6, 22, 7.6, xc, 0, 2.4),
+      rect(HALL.x1 - 0.25, 6.4, 0.6, 11.8, 3.6, xc, 0.6, 2.6),
+      rect(HALL.x0 + 0.25, 6.4, 0.6, 11.8, 3.6, xc, 0.6, 1.6),
+      rect(3.82, 2.2, 0.0, 12.5, 3.6, 0, 0, 3.4),
     ];
+    if (this.quality !== 'low') {
+      this.walls.push(rect(-0.2, 2.2, -5.45, 6.4, 3.6, -0.2, 0, 2.2));
+      this.walls.push(rect(MIRROR_X - 3.82, 2.2, 0.0, 12.5, 3.6, MIRROR_X, 0, 2.6));
+    }
     this.wallBase = this.walls.map((l) => l.intensity);
 
     const domeL = new THREE.PointLight(0xf4f6ff, 6, 0, 2);
     domeL.position.set(DOME.x, H + 1.2, DOME.z);
     s.add(domeL);
-    this.domeLight = domeL;
+    const hDome = new THREE.PointLight(0xf4f6ff, 30, 0, 2);
+    hDome.position.set(HDOME.x, HALL.h + 1.6, HDOME.z);
+    s.add(hDome);
+    this.domeLight = hDome;
+    this.chapelDome = domeL;
 
-    this.sconceLights = WALL.sconces.map((sc) => {
-      const l = new THREE.PointLight(0xffa860, 0.35, 3, 2);
-      l.position.set(-3.55, sc.y + 0.45, sc.z);
-      s.add(l);
-      return l;
-    });
-
-    this.spots = [0, 1].map((i) => {
-      const l = new THREE.SpotLight(0xffffff, 0, 16, 0.38, 0.6, 1.4);
-      l.position.set(DOME.x + (i ? 1.3 : -1.3), H + 0.1, DOME.z + 0.4);
-      l.target.position.set(i ? -3.5 : 3.5, 1, 2);
+    this.spots = [0, 1, 2, 3].map((i) => {
+      const l = new THREE.SpotLight(0xffffff, 0, 30, 0.32, 0.6, 1.2);
+      l.position.set(xc + [-7, -2.5, 2.5, 7][i], HALL.h - 0.4, -4.5);
+      l.target.position.set(xc, 0, 2);
       s.add(l, l.target);
       return l;
     });
-    const al = new THREE.SpotLight(0xfff0d6, 0, 12, 0.2, 0.55, 1.2);
-    al.position.set(0, H + 1.7, -3.9);
-    al.target.position.set(0, 1.0, -4.6);
+    const al = new THREE.SpotLight(0xfff0d6, 0, 20, 0.2, 0.55, 1.2);
+    al.position.set(HALTAR.x, HALL.h + 1.6, HALTAR.z + 2.5);
+    al.target.position.set(HALTAR.x, 1.2, HALTAR.z - 0.6);
     s.add(al, al.target);
     this.altarSpot = al;
+    const pyro = new THREE.PointLight(0xff8a2e, 0, 22, 1.6);
+    pyro.position.set(xc, 2.2, STAGE.z1 + 0.5);
+    s.add(pyro);
+    this.pyroLight = pyro;
   }
 
   post() {
     const r = this.renderer;
-    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.quality === 'low' ? 0 : 4 });
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.quality === 'high' ? 4 : this.quality === 'mid' ? 2 : 0 });
     const comp = new EffectComposer(r, rt);
     comp.addPass(new RenderPass(this.scene, this.camera));
     if (this.quality === 'high') {

@@ -1,6 +1,6 @@
 // Gloria chapel: brick wall with the arch, nave glimpse, oval dome, altar with the real icons, oak pews and wall details.
 import * as THREE from 'three';
-import { H, ROOM, ARCH, NAVE, DOME, ALTAR, PEWS, WALL, LATTICE } from './layout.js';
+import { H, ROOM, ARCH, NAVE, DOME, ALTAR, PEWS, WALL, LATTICE, HALL, APSE, STAGE, HALTAR, COLUMNS, HPEWS, LOFT, HDOME, BOTA, DISCO, MIRROR_X } from './layout.js';
 import { boxGeo, planeGeo, at, merge, sweepEllipse, canvasTex, rnd, boxProjectUV } from './util.js';
 import { buildLattice, latticeUniforms, patchLatticeMaterial } from './lattice.js';
 
@@ -220,46 +220,6 @@ function sconce(g, m, x, y, z, ry) {
   return flames;
 }
 
-function nave(m, uniforms, toSun) {
-  const g = new THREE.Group();
-  const { x0, zMin, zMax, h } = NAVE;
-  const xw = ROOM.x0 - ARCH.depth;
-  const w = xw - x0, dz = zMax - zMin;
-  const floor = new THREE.Mesh(planeGeo(w, dz, 1.4), m.floor);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.set((x0 + xw) / 2, 0, (zMin + zMax) / 2);
-  floor.receiveShadow = true;
-  const ceil = new THREE.Mesh(planeGeo(w, dz, 2.2), m.plaster);
-  ceil.rotation.x = Math.PI / 2;
-  ceil.position.set((x0 + xw) / 2, h, (zMin + zMax) / 2);
-  const wallA = new THREE.Mesh(planeGeo(w, h, 1.55), m.brickDark);
-  wallA.position.set((x0 + xw) / 2, h / 2, zMax);
-  wallA.rotation.y = Math.PI;
-  const upper = new THREE.Mesh(planeGeo(dz, h - H, 1.55), m.brick);
-  upper.position.set(xw, H + (h - H) / 2, (zMin + zMax) / 2);
-  upper.rotation.y = -Math.PI / 2;
-  g.add(floor, ceil, wallA, upper);
-  const sub = new THREE.Group();
-  const lat = buildLattice(m, uniforms, toSun, { pts: [[x0 + 2.2, zMin], [x0 + 0.6, zMin + 2.2], [x0, zMin + 4.5], [x0, zMax]], noShadow: true, noTop: true });
-  sub.add(lat.group);
-  sub.scale.y = (h - 0.2) / H;
-  g.add(sub);
-  const pil = new THREE.Mesh(boxGeo(0.55, h, 0.55, 1.4), m.pillar);
-  pil.position.set(xw - 1.1, h / 2, ARCH.z + 1.05);
-  const col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, h, 28), m.brickDark);
-  col.position.set(xw - 2.6, h / 2, ARCH.z - 1.2);
-  g.add(pil, col);
-  const table = new THREE.Mesh(boxGeo(1.4, 0.92, 0.7), m.cloth);
-  table.position.set(xw - 3.6, 0.46, ARCH.z + 0.3);
-  g.add(table);
-  const tv = new THREE.Mesh(boxGeo(0.95, 0.55, 0.05), m.black);
-  tv.position.set(xw - 0.85, 3.1, ARCH.z + 1.05 - 0.3);
-  tv.rotation.y = 0.4;
-  g.add(tv);
-  const flames = sconce(g, m, xw - 3.2, 2.9, zMax - 0.03, Math.PI);
-  return { group: g, flames };
-}
-
 function backWall(m) {
   const g = new THREE.Group();
   const s = new THREE.Shape();
@@ -299,9 +259,9 @@ function ceiling(m) {
   return g;
 }
 
-function dome(m) {
+function dome(m, D = DOME, H = 4.3, nWin = 26) {
   const g = new THREE.Group();
-  const { x, z, a, b, rim, drum, win } = DOME;
+  const { x, z, a, b, rim, drum, win } = D;
   const rimProf = [[rim, H], [rim * 0.7, H - 0.035], [rim * 0.35, H - 0.06], [0.04, H - 0.05], [0.0, H - 0.01], [0.0, H + 0.12], [0.05, H + 0.16]];
   const rimMesh = new THREE.Mesh(sweepEllipse(x, z, a, b, rimProf.map(([o, y]) => [o, y]), 128, 1.5), m.plasterWhite);
   rimMesh.material = m.plasterWhite.clone();
@@ -317,7 +277,7 @@ function dome(m) {
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
     fragmentShader: `uniform float uGlow; uniform vec3 uTint; varying vec2 vUv;
       void main(){
-        float n = 26.0; float x = fract(vUv.x * n) - 0.5; float y = vUv.y;
+        float n = ${nWin.toFixed(1)}; float x = fract(vUv.x * n) - 0.5; float y = vUv.y;
         float r = 0.3; float ys = 0.62;
         float inside = (abs(x) < r && y > 0.08 && y < ys) || (y >= ys && length(vec2(x, (y - ys) * 1.45)) < r) ? 1.0 : 0.0;
         vec3 plaster = vec3(0.85, 0.84, 0.8) * (0.55 + 0.6 * uGlow * 0.4);
@@ -336,14 +296,14 @@ function dome(m) {
     const gr = c.createLinearGradient(0, 0, 0, h);
     gr.addColorStop(0, '#d9d6cf'); gr.addColorStop(1, '#f2efe8');
     c.fillStyle = gr; c.fillRect(0, 0, w, h);
-    for (let i = 0; i < 26; i++) {
-      const xx = (i / 26) * w;
+    for (let i = 0; i < nWin; i++) {
+      const xx = (i / nWin) * w;
       c.fillStyle = 'rgba(120,115,105,0.35)'; c.fillRect(xx - 3, 0, 6, h);
       c.fillStyle = 'rgba(255,255,255,0.5)'; c.fillRect(xx + 3, 0, 3, h);
     }
   });
   const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ map: ribTex, roughness: 0.9, side: THREE.BackSide, emissive: 0xffffff, emissiveMap: ribTex, emissiveIntensity: 0.35 }));
-  cap.scale.set(a - 0.08, DOME.cap, b - 0.08);
+  cap.scale.set(a - 0.08, D.cap, b - 0.08);
   cap.position.set(x, capY, z);
   cap.material.shadowSide = THREE.DoubleSide;
   cap.castShadow = true;
@@ -444,7 +404,7 @@ function altar(m) {
   return { group: g, madonna, pope, wota, flames, iconY: iy };
 }
 
-function pewGeometry(len) {
+export function pewGeometry(len) {
   const parts = [];
   parts.push(at(boxGeo(len, 0.045, 0.42, 1.3), 0, 0.44, 0));
   const back = boxGeo(len, 0.5, 0.03, 1.3);
@@ -513,33 +473,276 @@ function tv(m) {
   return { group: g, canvas: cnv, texture: ct };
 }
 
+function wallPiece(g, mat, x, za, zb, ya, yb, face, tile = 1.55) {
+  const p = new THREE.Mesh(planeGeo(zb - za, yb - ya, tile), mat);
+  p.position.set(x, (ya + yb) / 2, (za + zb) / 2);
+  p.rotation.y = face > 0 ? Math.PI / 2 : -Math.PI / 2;
+  p.receiveShadow = true;
+  p.castShadow = true;
+  g.add(p);
+  return p;
+}
+
+function hallSide(g, m, x, face, uniforms, toSun) {
+  const zc0 = WALL.pilaster.z - WALL.pilaster.d / 2 - 0.4, zc1 = ROOM.zBack;
+  const h = HALL.h;
+  wallPiece(g, m.brick, x, -9.4, zc0, 0, h, face);
+  wallPiece(g, m.brick, x, zc1, HALL.z1, 0, h, face);
+  wallPiece(g, m.brick, x, zc0, zc1, H, 4.56, face);
+  const latG = new THREE.Group();
+  const lat = buildLattice(m, uniforms, toSun, { pts: [[x, zc0 + 0.05], [x, (zc0 + zc1) / 2], [x, zc1 - 0.05]], center: [HALL.xc, 0], keepCenter: true, noShadow: false });
+  latG.add(lat.group);
+  latG.position.y = 4.24;
+  g.add(latG);
+  for (const sl of lat.slots) sl.center.y += 4.24;
+  return lat;
+}
+
+function organ(g, m) {
+  const n = 41;
+  const geo = new THREE.CylinderGeometry(0.075, 0.075, 1, 14);
+  geo.translate(0, 0.5, 0);
+  const metal = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, metalness: 1, roughness: 0.28 });
+  const pipes = new THREE.InstancedMesh(geo, metal, n);
+  const glowGeo = new THREE.BoxGeometry(0.05, 1, 0.01);
+  glowGeo.translate(0, 0.5, 0);
+  const glow = new THREE.InstancedMesh(glowGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: true }), n);
+  const mtx = new THREE.Matrix4();
+  const info = [];
+  for (let i = 0; i < n; i++) {
+    const u = i / (n - 1);
+    const x = LOFT.x0 + 2.2 + u * (LOFT.x1 - LOFT.x0 - 4.4);
+    const d = Math.abs(u - 0.5) * 2;
+    const hgt = 1.6 + 3.0 * (0.55 + 0.45 * Math.cos(d * Math.PI * 2.5)) * (1 - d * 0.35);
+    mtx.makeScale(1, hgt, 1).setPosition(x, LOFT.y + 0.05, HALL.z1 - 0.45);
+    pipes.setMatrixAt(i, mtx);
+    mtx.makeScale(1, hgt * 0.92, 1).setPosition(x, LOFT.y + 0.12, HALL.z1 - 0.45 - 0.078);
+    glow.setMatrixAt(i, mtx);
+    glow.setColorAt(i, new THREE.Color(0, 0, 0));
+    info.push({ x, h: hgt, band: Math.floor(Math.abs(u - 0.5) * 2 * 7.99) });
+  }
+  pipes.castShadow = true;
+  g.add(pipes, glow);
+  return { pipes, glow, info };
+}
+
+function decks(m) {
+  const g = new THREE.Group();
+  const black = new THREE.MeshStandardMaterial({ color: 0x111114, roughness: 0.4, metalness: 0.3 });
+  const vinyl = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.25, metalness: 0.2 });
+  const led = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 0.7, 1).multiplyScalar(3) });
+  const platters = [];
+  for (const sx of [-0.62, 0.62]) {
+    const base = new THREE.Mesh(boxGeo(0.46, 0.08, 0.36), black);
+    base.position.set(sx, 0.04, 0);
+    const pl = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.012, 32), vinyl);
+    pl.position.set(sx, 0.088, 0);
+    const lab = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.014, 16), new THREE.MeshStandardMaterial({ color: 0xe2b25a, roughness: 0.5 }));
+    lab.position.set(sx, 0.089, 0);
+    g.add(base, pl, lab);
+    platters.push(pl, lab);
+  }
+  const mixer = new THREE.Mesh(boxGeo(0.34, 0.09, 0.36), black);
+  mixer.position.set(0, 0.045, 0);
+  g.add(mixer);
+  for (let i = 0; i < 6; i++) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.01, 0.04), led);
+    l.position.set(-0.1 + i * 0.04, 0.095, -0.1);
+    g.add(l);
+  }
+  g.position.set(HALTAR.x, STAGE.h + HALTAR.h, HALTAR.z);
+  g.visible = false;
+  return { group: g, platters };
+}
+
+function mainHall(m, scene, uniforms, toSun) {
+  const g = new THREE.Group();
+  const { x0, x1, xc, z0, z1, h } = HALL;
+  const floor = new THREE.Mesh(planeGeo(x1 - x0 + 0.2, z1 - z0, 1.4), m.floor);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2);
+  floor.receiveShadow = true;
+  g.add(floor);
+
+  const hu = { ...uniforms, uCenterCol: { value: 0 } };
+  const latMat = m.lattice.clone();
+  patchLatticeMaterial(latMat, hu);
+  const apseG = new THREE.Group();
+  const apse = buildLattice({ ...m, lattice: latMat }, hu, toSun, { pts: APSE.map(([x, z]) => [x / 2, z / 2]), center: [xc / 2, 0], crossAt: [xc / 2, z0 / 2] });
+  apseG.add(apse.group);
+  apseG.scale.setScalar(2);
+  g.add(apseG);
+
+  const su = { ...uniforms, uCenterCol: { value: -1000 } };
+  const sideMat = m.lattice.clone();
+  patchLatticeMaterial(sideMat, su);
+  const right = hallSide(g, { ...m, lattice: sideMat }, x1 + 0.005, -1, su, toSun);
+  hallSide(g, { ...m, lattice: sideMat }, x0 - 0.005, 1, su, toSun);
+  for (const [x, face] of [[x0, 1], [x1, -1]]) {
+    const end = APSE[face > 0 ? 0 : APSE.length - 1];
+    wallPiece(g, m.brick, x, end[1] - 0.6, -9.4, 0, h, face);
+  }
+  for (const [px, pz] of [APSE[0], APSE[APSE.length - 1]]) {
+    const pil = new THREE.Mesh(boxGeo(0.9, h, 0.9, 1.55), m.brick);
+    pil.position.set(px + (px < xc ? -0.2 : 0.2), h / 2, pz - 0.1);
+    pil.castShadow = pil.receiveShadow = true;
+    g.add(pil);
+  }
+
+  const back = new THREE.Shape();
+  back.moveTo(x0, 0); back.lineTo(x1, 0); back.lineTo(x1, h); back.lineTo(x0, h); back.lineTo(x0, 0);
+  const door = new THREE.Path();
+  door.moveTo(xc - 1.3, 0); door.lineTo(xc + 1.3, 0); door.lineTo(xc + 1.3, 3.0); door.lineTo(xc - 1.3, 3.0); door.lineTo(xc - 1.3, 0);
+  back.holes.push(door);
+  const bw = new THREE.Mesh(new THREE.ShapeGeometry(back), m.brick);
+  const buv = bw.geometry.attributes.uv;
+  for (let i = 0; i < buv.count; i++) buv.setXY(i, buv.getX(i), buv.getY(i));
+  bw.rotation.y = Math.PI;
+  bw.position.set(2 * xc, 0, z1);
+  bw.receiveShadow = true;
+  g.add(bw);
+  const dd = new THREE.Mesh(boxGeo(2.6, 3.0, 0.1, 1.3), m.door);
+  dd.position.set(xc, 1.5, z1 + 0.05);
+  g.add(dd);
+
+  const cs = new THREE.Shape();
+  cs.moveTo(x0 - 0.5, z0 - 0.3); cs.lineTo(x1 + 0.5, z0 - 0.3); cs.lineTo(x1 + 0.5, z1); cs.lineTo(x0 - 0.5, z1); cs.lineTo(x0 - 0.5, z0 - 0.3);
+  const ch = new THREE.Path();
+  ch.absellipse(HDOME.x, HDOME.z, HDOME.a + HDOME.rim, HDOME.b + HDOME.rim, 0, Math.PI * 2, false);
+  cs.holes.push(ch);
+  const cg = new THREE.ShapeGeometry(cs, 64);
+  cg.rotateX(Math.PI / 2);
+  const ceil = new THREE.Mesh(cg, m.plaster);
+  ceil.position.y = h;
+  ceil.receiveShadow = ceil.castShadow = true;
+  g.add(ceil);
+  const hd = dome(m, HDOME, h, 34);
+  g.add(hd.group);
+
+  for (let i = 0; i < 5; i++) {
+    const beam = new THREE.Mesh(boxGeo(x1 - x0, 0.45, 0.35, 1.4), m.pillar);
+    beam.position.set(xc, h - 0.22, -8.2 + i * 3.9 + (i >= 2 ? 1.6 : 0));
+    if (i === 2) continue;
+    beam.castShadow = true;
+    g.add(beam);
+  }
+  for (const [cx, cz] of COLUMNS) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, h, 28), m.brickDark);
+    col.position.set(cx, h / 2, cz);
+    col.castShadow = col.receiveShadow = true;
+    const capi = new THREE.Mesh(boxGeo(1.0, 0.3, 1.0, 1.4), m.pillar);
+    capi.position.set(cx, h - 0.15, cz);
+    g.add(col, capi);
+  }
+  for (const [px, face] of [[x1, -1], [x0, 1]]) for (const dz of [-1.95, 1.95]) {
+    const p = new THREE.Mesh(boxGeo(0.55, h, 0.55, 1.4), m.pillar);
+    p.position.set(px + face * 0.3, h / 2, ARCH.z + dz);
+    p.castShadow = p.receiveShadow = true;
+    g.add(p);
+  }
+
+  const st = new THREE.Shape();
+  st.moveTo(STAGE.x0, STAGE.z1); st.lineTo(STAGE.x1, STAGE.z1); st.lineTo(STAGE.x1 + 0.6, -9.6); st.lineTo(xc, -12.0); st.lineTo(STAGE.x0 - 0.6, -9.6); st.lineTo(STAGE.x0, STAGE.z1);
+  const stg = new THREE.ExtrudeGeometry(st, { depth: STAGE.h, bevelEnabled: false, curveSegments: 4 });
+  stg.rotateX(Math.PI / 2);
+  stg.translate(0, STAGE.h, 0);
+  const stage = new THREE.Mesh(stg, m.floor);
+  stage.castShadow = stage.receiveShadow = true;
+  g.add(stage);
+  const step = new THREE.Mesh(boxGeo(4.2, 0.3, 0.55, 1.4), m.floor);
+  step.position.set(xc, 0.15, STAGE.z1 + 0.27);
+  step.receiveShadow = true;
+  g.add(step);
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(STAGE.x1 - STAGE.x0, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  edge.position.set(xc, STAGE.h - 0.03, STAGE.z1 + 0.02);
+  g.add(edge);
+
+  const A = HALTAR;
+  const abase = new THREE.Mesh(boxGeo(A.w - 0.3, A.h - 0.1, A.d - 0.2, 1.55), m.brick);
+  abase.position.set(A.x, STAGE.h + (A.h - 0.1) / 2, A.z);
+  const atop = new THREE.Mesh(boxGeo(A.w, 0.1, A.d), m.marble);
+  atop.position.set(A.x, STAGE.h + A.h - 0.05, A.z);
+  abase.castShadow = atop.castShadow = true;
+  g.add(abase, atop);
+  const flames = [];
+  for (const sx of [-1.2, 1.2]) {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.5, 14), m.candle);
+    c.position.set(A.x + sx, STAGE.h + A.h + 0.25, A.z - 0.3);
+    const fl = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 6), m.flame);
+    fl.scale.set(1, 2.4, 1);
+    fl.position.set(A.x + sx, STAGE.h + A.h + 0.53, A.z - 0.3);
+    g.add(c, fl);
+    flames.push(fl);
+  }
+  const dk = decks(m);
+  g.add(dk.group);
+
+  const wood = m.door;
+  const crossG = new THREE.Group();
+  const cv = new THREE.Mesh(boxGeo(0.28, 4.4, 0.22, 1.3), wood);
+  const chz = new THREE.Mesh(boxGeo(2.6, 0.28, 0.22, 1.3), wood);
+  chz.position.y = 0.9;
+  crossG.add(cv, chz);
+  for (const sx of [-1.2, 1.2]) {
+    const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, h - 7.9, 4), m.black);
+    cab.position.set(sx, 0.9 + (h - 7.9) / 2 + 0.14, 0);
+    crossG.add(cab);
+  }
+  crossG.position.set(xc, 5.6, -10.4);
+  crossG.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  g.add(crossG);
+
+  const loft = new THREE.Mesh(boxGeo(LOFT.x1 - LOFT.x0, 0.22, z1 - LOFT.z0, 1.4), m.pillar);
+  loft.position.set(xc, LOFT.y - 0.11, (LOFT.z0 + z1) / 2);
+  const par = new THREE.Mesh(boxGeo(LOFT.x1 - LOFT.x0, 1.0, 0.2, 1.55), m.brick);
+  par.position.set(xc, LOFT.y + 0.5, LOFT.z0 + 0.1);
+  loft.castShadow = par.castShadow = true;
+  loft.receiveShadow = par.receiveShadow = true;
+  g.add(loft, par);
+  const org = organ(g, m);
+
+  for (const [xa, xb] of [HPEWS.left, HPEWS.right]) {
+    const len = xb - xa;
+    const im = new THREE.InstancedMesh(pewGeometry(len), m.wood, HPEWS.rows);
+    const mtx = new THREE.Matrix4();
+    for (let r = 0; r < HPEWS.rows; r++) { mtx.makeTranslation((xa + xb) / 2, 0, HPEWS.z0 + r * HPEWS.pitch); im.setMatrixAt(r, mtx); }
+    im.castShadow = im.receiveShadow = true;
+    g.add(im);
+  }
+  scene.add(g);
+  return { group: g, apse, apseU: hu, right, dome: hd, decks: dk, cross: crossG, organ: org, flames };
+}
+
 export function buildChurch(scene, toSun) {
   const m = makeMaterials();
   const uniforms = latticeUniforms();
   patchLatticeMaterial(m.lattice, uniforms);
+  const chapel = new THREE.Group();
   const lat = buildLattice(m, uniforms, toSun);
-  scene.add(lat.group);
-
-  const floor = new THREE.Mesh(planeGeo(9.4, ROOM.zBack + 6.4, 1.4), m.floor);
+  chapel.add(lat.group);
+  const floor = new THREE.Mesh(planeGeo(8.9, ROOM.zBack + 6.4, 1.4), m.floor);
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(0.1, 0, (ROOM.zBack - 6.4) / 2 + 0.0);
+  floor.position.set(0.35, 0, (ROOM.zBack - 6.4) / 2);
   floor.receiveShadow = true;
-  scene.add(floor);
-
+  chapel.add(floor);
   const lw = leftWall(m);
-  scene.add(lw.group);
-  const nv = nave(m, uniforms, toSun);
-  scene.add(nv.group);
-  scene.add(backWall(m));
-  scene.add(ceiling(m));
+  chapel.add(lw.group);
+  chapel.add(backWall(m));
+  chapel.add(ceiling(m));
   const dm = dome(m);
-  scene.add(dm.group);
+  chapel.add(dm.group);
   const al = altar(m);
-  scene.add(al.group);
+  chapel.add(al.group);
   const pw = pews(m);
-  scene.add(pw.group);
+  chapel.add(pw.group);
   const screen = tv(m);
-  scene.add(screen.group);
+  chapel.add(screen.group);
+  scene.add(chapel);
+  const mirror = chapel.clone();
+  mirror.scale.x = -1;
+  mirror.position.x = MIRROR_X;
+  scene.add(mirror);
+  const hall = mainHall(m, scene, uniforms, toSun);
 
   scene.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.uv && !o.geometry.attributes.uv1) o.geometry.setAttribute('uv1', o.geometry.attributes.uv); });
 
@@ -552,6 +755,8 @@ export function buildChurch(scene, toSun) {
     pews: pw,
     tv: screen,
     mosaic: lw.mosaic,
-    flames: [...lw.flames, ...nv.flames, ...al.flames],
+    flames: [...lw.flames, ...al.flames, ...hall.flames],
+    hall,
+    mirror,
   };
 }

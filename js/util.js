@@ -62,22 +62,23 @@ export function boxProjectUV(geo, tile = 1) {
   return g;
 }
 
-export function frameAt(curve, u) {
+export function frameAt(curve, u, center) {
   const p = curve.getPointAt(u);
   const t = curve.getTangentAt(u).setY(0).normalize();
   const n = new THREE.Vector3(-t.z, 0, t.x);
-  if (n.dot(new THREE.Vector3(-p.x, 0, -p.z)) < 0) n.negate();
+  const cx = center ? center[0] : 0, cz = center ? center[1] : 0;
+  if (n.dot(new THREE.Vector3(cx - p.x, 0, cz - p.z)) < 0) { n.negate(); t.negate(); }
   return { p, t, n };
 }
 
-export function sweepCurve(curve, profile, segs, uScale = 1) {
+export function sweepCurve(curve, profile, segs, uScale = 1, center) {
   const pos = [], uv = [], idx = [];
   const L = curve.getLength();
   const plen = [0];
   for (let j = 1; j < profile.length; j++) plen.push(plen[j - 1] + Math.hypot(profile[j][0] - profile[j - 1][0], profile[j][1] - profile[j - 1][1]));
   for (let i = 0; i <= segs; i++) {
     const u = i / segs;
-    const { p, n } = frameAt(curve, u);
+    const { p, n } = frameAt(curve, u, center);
     for (let j = 0; j < profile.length; j++) {
       const [off, y] = profile[j];
       pos.push(p.x + n.x * off, y, p.z + n.z * off);
