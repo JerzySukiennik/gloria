@@ -1,0 +1,25 @@
+import { createRequire } from 'node:module';
+const require = createRequire('/Users/jurek/Downloads/Claude/Projects/CivicForge/node_modules/');
+const { chromium } = require('playwright-core');
+const [query] = process.argv.slice(2);
+const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+await page.goto('http://localhost:8851/' + query);
+await page.waitForFunction(() => window.__gl && window.__gl.ready && __gl.G.state === 'play', null, { timeout: 90000 });
+await page.waitForTimeout(3000);
+const r = await page.evaluate(async () => {
+  const g = __gl, st = g.stage, out = {};
+  st.setPixelRatio(1); st.maxPR = 1;
+  const pl = g.player; pl.pos.x = -16.42; pl.pos.z = 1.5; pl.yaw = 0; pl.pitch = 0.12;
+  const ms = async () => { const t0 = performance.now(); let n = 0; while (performance.now() - t0 < 1800) { await new Promise((r) => requestAnimationFrame(r)); n++; } return Math.round(n / ((performance.now() - t0) / 1000)); };
+  const vis = (pred, v) => { st.scene.traverse((o) => { if (pred(o)) o.visible = v; }); };
+  out.all = await ms();
+  const add = (o) => o.material && o.material.blending === 2;
+  vis(add, false); out.noAdditive = await ms(); vis(add, true);
+  st.bloom.enabled = false; out.noBloom = await ms(); st.bloom.enabled = true;
+  for (const s of [...st.spots, ...st.walls]) s.userData.i = s.intensity;
+  out.again = await ms();
+  return out;
+});
+console.log(JSON.stringify(r));
+await browser.close();

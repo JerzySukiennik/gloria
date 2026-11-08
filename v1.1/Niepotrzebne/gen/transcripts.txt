@@ -1,0 +1,25 @@
+## /tmp/tr_p_intro.wav 
+ [0.0-5.4] W imię Ojca i Syna i Ducha Świętego.
+## /tmp/tr_p_hype.wav 
+ [0.0-0.4] Kochani,
+[1.0-3.6] Mówią, że msza jest nudna.
+[4.0-5.4] To dzisiaj sprawdzimy.
+[5.9-8.5] Niech ten kościół zaświeci.
+## /tmp/tr_p_gloria.wav 
+ [0.0-6.1] Chwała na wysokości Bogu, wszyscy razem.
+## /tmp/tr_p_homily.wav 
+ [0.463-2.223] Spójrzcie na te ściany.
+[3.313-7.23] Każde okienko osobno to tylko kawałek szkła.
+[7.773-12.393] Ale kiedy wpada przez nie słońce, cała ściana świeci.
+[13.113-14.773] Z nami jest tak samo.
+[15.263-20.243] Każdy z was jest takim okienkiem, a Bóg jest światłem.
+[20.913-22.783] Wystarczy się otworzyć.
+## /tmp/tr_p_cisza.wav 
+ [0.0-1.9] A teraz cisza.
+[2.8-4.5] Najważniejsza chwila.
+## /tmp/tr_p_wstancie.wav 
+ [0.0-5.1] On jest z nami. Wstańcie i chwalcie Pana.
+## /tmp/tr_p_koniec.wav 
+ [0.021-3.691] No i kto powiedział, że msza jest nudna?
+## /tmp/tr_p_obudzcie.wav 
+ [0.0-2.2] Obudźcie się tam z tyłu.

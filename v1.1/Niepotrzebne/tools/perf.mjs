@@ -1,0 +1,23 @@
+import { createRequire } from 'node:module';
+const require = createRequire('/Users/jurek/Downloads/Claude/Projects/CivicForge/node_modules/');
+const { chromium } = require('playwright-core');
+const [query, W = '1440', H = '900'] = process.argv.slice(2);
+const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--disable-frame-rate-limit', '--disable-gpu-vsync'] });
+const page = await browser.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: 2 });
+await page.goto('http://localhost:' + (process.env.HPORT || 8851) + '/' + query);
+await page.waitForFunction(() => window.__gl && window.__gl.ready, null, { timeout: 60000 });
+await page.waitForTimeout(9000);
+const r = await page.evaluate(async () => {
+  const g = __gl, out = {};
+  const measure = async () => { await new Promise((r) => setTimeout(r, 2200)); return Math.round(g.fps); };
+  const sc = g.stage.scene;
+  const find = (pred) => { const a = []; sc.traverse((o) => { if (pred(o)) a.push(o); }); return a; };
+  out.all = await measure();
+  const pts = find((o) => o.isPoints); pts.forEach((o) => (o.visible = false)); out.noPoints = await measure(); pts.forEach((o) => (o.visible = true));
+  const add = find((o) => o.material && o.material.blending === 2); add.forEach((o) => (o.visible = false)); out.noAdditive = await measure(); add.forEach((o) => (o.visible = true));
+  g.stage.bloom.enabled = false; out.noBloom = await measure(); g.stage.bloom.enabled = true;
+  g.stage.spots.forEach((s) => (s.visible = false)); g.stage.altarSpot.visible = false; out.noSpots = await measure();
+  return out;
+});
+console.log(JSON.stringify(r));
+await browser.close();

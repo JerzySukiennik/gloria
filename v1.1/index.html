@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a09">
+<title>Gloria</title>
+<meta name="description" content="Msza, na której jest rave. Wejdź do kaplicy, usiądź, gdzie chcesz, a resztę zrobią ksiądz, światło i Ameno.">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%230b0a09%27/%3E%3Crect x=%2710%27 y=%275%27 width=%274%27 height=%2710%27 rx=%272%27 fill=%27%23f3e3c3%27/%3E%3Crect x=%2718%27 y=%275%27 width=%274%27 height=%276%27 rx=%272%27 fill=%27%23f3e3c3%27/%3E%3Crect x=%2718%27 y=%2713%27 width=%274%27 height=%2714%27 rx=%272%27 fill=%27%23e2b25a%27/%3E%3Crect x=%2710%27 y=%2717%27 width=%274%27 height=%2710%27 rx=%272%27 fill=%27%23f3e3c3%27/%3E%3C/svg%3E">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="ui">
+  <section id="title" class="screen">
+    <div class="t-inner">
+      <p class="eyebrow">Kaplica · niedziela, 11:00</p>
+      <h1>Gloria</h1>
+      <p class="lede">Msza, na której jest rave. Wejdź, usiądź, gdzie chcesz, i patrz, jak ściana ze szkła zaczyna grać.</p>
+      <button id="start" class="primary" disabled>Ładowanie…</button>
+      <div class="keys">
+        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> chodzenie</span><span><kbd>Mysz</kbd> rozglądanie</span><span><kbd>E</kbd> usiądź / wstań</span><span><kbd>Spacja</kbd> skok</span>
+      </div>
+      <p class="fine">Na telefonie: lewy kciuk chodzi, prawy się rozgląda. Najlepiej ze słuchawkami.</p>
+      <div id="loadbar"><i></i></div>
+    </div>
+  </section>
+  <section id="pick" class="screen hidden">
+    <div class="p-inner">
+      <p class="eyebrow">Co dziś zagra na mszy?</p>
+      <h2>Wybierz utwór</h2>
+      <div class="cards">
+        <button class="song" data-key="techno"><span class="vibe">Techno</span><b>Ameno</b><i>Era · Gabry Ponte Techno Mix</i><span class="eq"><em></em><em></em><em></em><em></em><em></em></span><span class="bpm">150 BPM</span></button>
+        <button class="song" data-key="psy"><span class="vibe">Psytrance</span><b>Ameno</b><i>Era · Planet 6 Remix</i><span class="eq"><em></em><em></em><em></em><em></em><em></em></span><span class="bpm">138 BPM</span></button>
+        <button class="song" data-key="yes"><span class="vibe">Hip-hop z chórem</span><b>YES!</b><i>Killer Mike</i><span class="eq"><em></em><em></em><em></em><em></em><em></em></span><span class="bpm">86 BPM</span></button>
+      </div>
+      <p class="fine" id="pickHint">Najedź, żeby posłuchać. Kliknij, żeby zacząć mszę.</p>
+    </div>
+  </section>
+  <header id="hud">
+    <div id="part"><span id="partNum"></span><b id="partName"></b></div>
+  </header>
+  <div id="sub"></div>
+  <div id="act"></div>
+  <div id="lock">Kliknij, żeby się rozglądać myszą</div>
+  <div id="stick"><i></i></div>
+  <div id="tbtns">
+    <button id="seatBtn" class="round">Usiądź</button>
+    <button id="jumpBtn" class="round">Skok</button>
+  </div>
+  <section id="end" class="card hidden">
+    <p class="eyebrow">Idźcie w pokoju</p>
+    <p class="lede" id="endLine">Zostań i pochodź po kościele albo zacznij mszę od nowa.</p>
+    <button id="again" class="primary">Wybierz utwór i od nowa</button>
+  </section>
+  <button id="mute" aria-label="Wycisz">♪</button>
+  <button id="lyr" aria-label="Tekst piosenki">Aa</button>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
