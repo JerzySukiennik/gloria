@@ -1,0 +1,13 @@
+.env
+.DS_Store
+Niepotrzebne/src/
+Niepotrzebne/sfx/raw/
+Niepotrzebne/gen/voice/
+Niepotrzebne/music/*.wav
+Niepotrzebne/music/*.json
+**/*.pcm
+**/*.webm
+node_modules/
+Niepotrzebne/music/**/*.wav
+Niepotrzebne/music/kandydaci/
+Niepotrzebne/odsluch/

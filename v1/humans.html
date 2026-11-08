@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gloria humans test</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<style>
+html,body{margin:0;height:100%;background:#0b0a09;color:#ddd;font:12px/1.4 ui-monospace,Menlo,monospace;overflow:hidden}
+canvas{display:block}
+#hud{position:fixed;left:8px;top:6px;pointer-events:none;text-shadow:0 1px 2px #000;white-space:pre}
+#sheet{position:fixed;inset:0;background:#000;display:none}
+details{position:fixed;right:8px;top:6px;max-width:460px;background:rgba(10,10,10,.85);padding:6px 10px;border-radius:6px}
+details p{margin:4px 0}
+</style>
+</head>
+<body>
+<div id="hud"></div>
+<canvas id="sheet"></canvas>
+<details><summary>humans.js API notes</summary>
+<p><b>new Congregation(scene, {places, quality, seed, fill, special})</b>; update(dt, t, beat, beatPhase, energy). Fields: slots [{x, z, yaw, taken}], people, meshes, mood, cpu (ms per update).</p>
+<p><b>kick(strength 0..1)</b>: call on every kick drum hit; fist pumps and horns snap to it (60 ms attack). Without calls they follow the beat phase. <b>drop(beat?)</b>: unison jump of everyone under 35 for the next bar (default: starts on the next beat). <b>tshirts(on = true)</b>: people under 35 swap jackets for bright t-shirts (scarves, hoods, beanies off).</p>
+<p><b>mood</b> (0..1, roughly the share of people doing it): stand, kneel, sleep, sway, clap, raise, jump, mosh (pit only), worship, headbang, peace, pump, shuffle, hug, sing. When jump/mosh/headbang/pump/shuffle exceed 0.35 everyone standing switches to two personal signature moves (fist pump, hakken, jump, headbang, hands up, horns, running man), neighbours differ. Elders keep their own: late clapping, handkerchief wave, hymnbook, ears covered then joining in, disapproving head shake, arm in arm. Everyone dancing nods on each beat.</p>
+<p><b>new Clergy(scene, {priest, server, deck = true, autoShed = true})</b>: mode idle | orans | talk | elev | hype | dance | breakdance | dj (blended), voice, host, censerPos, smokePos (thurible vents, world space, per frame), priestRoot, serverRoot (move them and a walk cycle blends in), kick(amount), <b>shedChasuble()</b> (tosses the chasuble to the floor, he dances in the alb; automatic on entering breakdance when autoShed), <b>wearChasuble()</b>, vestOn, update(dt, t, beat, beatPhase, energy). Breakdance: 32-beat loop from the mode switch: toprock, drop, flare, windmill, headspin, freeze held for a bar from beat 24, getup.</p>
+<p>URL: mood=sit|stand|clap|jump|hands|mosh|worship|kneel|headbang|sleep|peace|shuffle|hug|pump|mix|sitclap|sitmix, priest=&lt;mode&gt;, cam=back|side|close|face|priest|stage|pclose|dj|bd|bdfront|server|pit|wide|line|lineclose|lineside, t=seconds (freeze), e=energy, light=rave|day, n=people, fill, seed, q=low|mid|high, bpm, lineup=1|back, nopit=1, walk=1, drop=beat, kicks=1, tee=1, vest=1, cx cy cz lx ly lz (custom camera).</p>
+</details>
+<script type="module">
+import * as THREE from 'three';
+import { Congregation, Clergy } from './js/humans.js';
+
+const Q = new URLSearchParams(location.search);
+const MOOD = Q.get('mood') || 'clap';
+const PRIEST = Q.get('priest') || 'dance';
+const CAM = Q.get('cam') || 'back';
+const LIGHT = Q.get('light') || 'rave';
+const FREEZE = Q.has('t') ? +Q.get('t') : null;
+const N = +(Q.get('n') || 90);
+const BPM = +(Q.get('bpm') || 140);
+const ENERGY = Q.has('e') ? +Q.get('e') : null;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(LIGHT === 'day' ? 0x2b2824 : 0x050407);
+const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.05, 80);
+
+const floorM = new THREE.MeshStandardMaterial({ color: LIGHT === 'day' ? 0x6a5f55 : 0x2a2622, roughness: 0.85 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), floorM);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+const wood = new THREE.MeshStandardMaterial({ color: 0x6b4a2e, roughness: 0.6 });
+const stone = new THREE.MeshStandardMaterial({ color: LIGHT === 'day' ? 0x9a8f84 : 0x3a3530, roughness: 0.8 });
+
+const STAGE_Z = -9.2, STAGE_Y = 0.6;
+const stage = new THREE.Mesh(new THREE.BoxGeometry(9, STAGE_Y, 5.3), stone);
+stage.position.set(0, STAGE_Y / 2, STAGE_Z - 0.55);
+scene.add(stage);
+const altar = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.95, 0.8), new THREE.MeshStandardMaterial({ color: 0xd9d2c4, roughness: 0.7 }));
+altar.position.set(0, STAGE_Y + 0.475, STAGE_Z + 0.15);
+scene.add(altar);
+const back = new THREE.Mesh(new THREE.BoxGeometry(14, 6, 0.3), new THREE.MeshStandardMaterial({ color: LIGHT === 'day' ? 0x8a5a44 : 0x2a1a14, roughness: 0.9 }));
+back.position.set(0, 3, STAGE_Z - 3.2);
+scene.add(back);
+
+const places = [];
+const ROWS = Math.max(4, Math.round((N - 30) / (10 * +(Q.get('fill') || 0.85))));
+const pitch = 0.96, z0 = -2.6;
+function pew(len, x, z) {
+  const g = new THREE.Group();
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(len, 0.045, 0.42), wood); seat.position.set(0, 0.44, 0); g.add(seat);
+  const bk = new THREE.Mesh(new THREE.BoxGeometry(len, 0.5, 0.03), wood); bk.position.set(0, 0.72, 0.24); bk.rotation.x = -0.12; g.add(bk);
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.07, 0.12), wood); rail.position.set(0, 0.99, 0.29); g.add(rail);
+  const shelf = new THREE.Mesh(new THREE.BoxGeometry(len, 0.11, 0.018), wood); shelf.position.set(0, 0.85, 0.44); g.add(shelf);
+  const kn = new THREE.Mesh(new THREE.BoxGeometry(len, 0.07, 0.12), wood); kn.position.set(0, 0.11, 0.62); g.add(kn);
+  for (const sx of [-len / 2, len / 2]) { const e = new THREE.Mesh(new THREE.BoxGeometry(0.055, 1.0, 0.62), wood); e.position.set(sx, 0.5, 0.06); g.add(e); }
+  g.position.set(x, 0, z);
+  scene.add(g);
+}
+const seatsPerSide = 5, seatW = 0.58;
+for (let row = 0; row < ROWS; row++) {
+  const z = z0 + row * pitch;
+  for (const side of [-1, 1]) {
+    const cx = side * (0.75 + seatsPerSide * seatW / 2);
+    pew(seatsPerSide * seatW + 0.1, cx, z);
+    for (let k = 0; k < seatsPerSide; k++) places.push({ x: cx - (seatsPerSide - 1) * seatW / 2 + k * seatW, z, yaw: 0, kind: 'seat' });
+  }
+}
+const kn0 = new THREE.Mesh(new THREE.BoxGeometry(8, 0.07, 0.12), wood); kn0.position.set(0, 0.11, z0 - pitch + 0.62); scene.add(kn0);
+const pr = (s) => { let v = s; return () => ((v = (v * 16807) % 2147483647) / 2147483647); };
+const rr = pr(42);
+if (!Q.has('nopit')) for (let i = 0; i < 6; i++) for (let j = 0; j < 5; j++) places.push({ x: -1.65 + i * 0.66 + (rr() - 0.5) * 0.18, z: STAGE_Z + 2.75 + j * 0.62 + (rr() - 0.5) * 0.15, yaw: (rr() - 0.5) * 0.5, kind: 'stand' });
+const special = [
+  { x: places[2 * 10 + 1].x, z: places[2 * 10 + 1].z, yaw: 0, kind: 'seat', preset: 'redHatLady' },
+  { x: places[3 * 10 + 6].x, z: places[3 * 10 + 6].z, yaw: 0, kind: 'seat', preset: 'navyJacketMan' },
+  { x: places[1 * 10 + 7].x, z: places[1 * 10 + 7].z, yaw: 0, kind: 'seat', preset: 'beigeJacketLady' },
+];
+if (Q.has('lineup')) {
+  places.length = 0; special.length = 0;
+  const yaw = Q.get('lineup') === 'back' ? 0 : Math.PI;
+  for (let i = 0; i < 10; i++) places.push({ x: -2.25 + i * 0.5, z: 4, yaw, kind: 'stand' });
+  ['redHatLady', 'navyJacketMan', 'beigeJacketLady'].forEach((pr, i) => special.push({ x: places[i].x, z: 4, yaw, kind: 'stand', preset: pr }));
+}
+const crowd = new Congregation(scene, { places, quality: Q.get('q') || 'mid', seed: +(Q.get('seed') || 3), fill: +(Q.get('fill') || 0.85), special });
+const clergy = new Clergy(scene, { priest: { x: 0, y: STAGE_Y, z: STAGE_Z - 0.55, yaw: Math.PI }, server: { x: 1.6, y: STAGE_Y, z: STAGE_Z + 0.2, yaw: Math.PI - 0.5 } });
+if (PRIEST === 'breakdance') { clergy.priestRoot.position.set(0, STAGE_Y, STAGE_Z + 1.45); if (!Q.has('vest')) clergy.shedChasuble(); }
+clergy.mode = PRIEST;
+if (Q.has('tee')) crowd.tshirts(true);
+
+const hemi = new THREE.HemisphereLight(0x9aa4b8, 0x2a2420, LIGHT === 'day' ? 1.4 : 0.35);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xfff2e0, LIGHT === 'day' ? 2.2 : 0.5);
+key.position.set(3, 6, 4);
+scene.add(key);
+const spots = [];
+if (LIGHT !== 'day') {
+  const cols = [0xff2bd6, 0x22d3ff, 0xffb020, 0x7a3cff, 0x2bff8a];
+  cols.forEach((c, i) => {
+    const s = new THREE.SpotLight(c, 60, 30, 0.55, 0.5, 1.4);
+    s.position.set(-4 + i * 2, 5.5, STAGE_Z + 0.5);
+    s.target.position.set(-3 + i * 1.5, 0, -1 + (i % 2) * 2);
+    scene.add(s, s.target);
+    spots.push(s);
+  });
+  const ps = new THREE.SpotLight(0xffffff, 40, 20, 0.45, 0.5, 1.2);
+  ps.position.set(0, 6, STAGE_Z + 4); ps.target.position.set(0, STAGE_Y + 1, STAGE_Z);
+  scene.add(ps, ps.target);
+  const rim = new THREE.PointLight(0x4060ff, 12, 12, 1.5); rim.position.set(0, 3, 6); scene.add(rim);
+}
+
+const MOODS = {
+  sit: {}, stand: { stand: 1 }, clap: { stand: 1, clap: 1, sing: 0.6 }, jump: { stand: 1, jump: 1, raise: 0.3 }, hands: { stand: 1, raise: 1 },
+  mosh: { stand: 1, mosh: 1, jump: 0.6, pump: 0.4 }, worship: { stand: 1, worship: 1, sing: 0.4 }, kneel: { kneel: 1 }, headbang: { stand: 1, headbang: 1 },
+  sleep: { sleep: 1 }, peace: { stand: 1, peace: 1 }, shuffle: { stand: 1, shuffle: 1 }, hug: { stand: 1, hug: 1, sing: 0.7 }, pump: { stand: 1, pump: 1 },
+  mix: { stand: 1, jump: 0.5, mosh: 0.6, pump: 0.4, raise: 0.4, clap: 0.3, headbang: 0.3, shuffle: 0.25, hug: 0.15 }, sitclap: { clap: 1, sway: 0.4 }, sitmix: { clap: 0.6, sway: 0.5, raise: 0.3, hug: 0.3, pump: 0.2 },
+};
+Object.assign(crowd.mood, MOODS[MOOD] || {});
+const energy = ENERGY ?? (['jump', 'mosh', 'mix', 'headbang', 'shuffle', 'pump'].includes(MOOD) ? 1 : 0.6);
+
+const CAMS = {
+  back: [[1.2, 1.65, z0 + ROWS * pitch + 0.4], [0.2, 1.0, z0]],
+  side: [[4.9, 1.65, z0 + 2.2], [1.2, 0.9, z0 + 2.0]],
+  close: [[-1.25, 1.6, z0 + 2 * pitch + 1.1], [-1.75, 1.05, z0 + 2 * pitch]],
+  face: [[-1.0, 1.55, z0 - 1.3], [-1.6, 1.05, z0 + 0.8]],
+  priest: [[0.6, 2.4, STAGE_Z + 4.6], [0, STAGE_Y + 1.0, STAGE_Z]],
+  stage: [[0.9, STAGE_Y + 1.5, STAGE_Z + 2.3], [0.35, STAGE_Y + 0.95, STAGE_Z - 0.3]],
+  pclose: [[0.25, STAGE_Y + 1.55, STAGE_Z + 1.2], [0, STAGE_Y + 1.35, STAGE_Z - 0.55]],
+  dj: [[1.0, 2.0, STAGE_Z + 3.2], [0, STAGE_Y + 1.1, STAGE_Z - 0.4]],
+  bd: [[2.9, STAGE_Y + 1.25, STAGE_Z + 3.1], [0, STAGE_Y + 0.5, STAGE_Z + 1.45]],
+  bdfront: [[0.4, STAGE_Y + 1.9, STAGE_Z + 4.6], [0, STAGE_Y + 0.5, STAGE_Z + 1.45]],
+  server: [[2.5, STAGE_Y + 1.2, STAGE_Z + 2.0], [1.6, STAGE_Y + 0.7, STAGE_Z + 0.2]],
+  pit: [[0.8, 1.65, STAGE_Z + 6.3], [0, 1.0, STAGE_Z + 3.0]],
+  wide: [[5.5, 4.6, 6.5], [0, 0.6, -4.5]],
+  line: [[0, 1.45, 6.7], [0, 1.0, 4]],
+  lineclose: [[-1.5, 1.55, 5.3], [-1.5, 1.45, 4]],
+  lineside: [[3.6, 1.3, 4.6], [0, 1.0, 4]],
+};
+const [cp, ct] = CAMS[CAM] || CAMS.back;
+camera.position.set(...cp);
+camera.lookAt(...ct);
+if (Q.has('cx')) { camera.position.set(+Q.get('cx'), +Q.get('cy'), +Q.get('cz')); camera.lookAt(+Q.get('lx'), +Q.get('ly'), +Q.get('lz')); }
+
+let simT = 0;
+function step(t, dt) {
+  const beat = t * BPM / 60;
+  if (Q.has('walk')) {
+    const u = 0.5 - 0.5 * Math.cos(Math.min(1, Math.max(0, (t % 8) / 3)) * Math.PI) * (t % 16 < 8 ? 1 : -1) - (t % 16 < 8 ? 0 : -0);
+    const k = (t % 16) < 8 ? Math.min(1, (t % 8) / 3) : 1 - Math.min(1, (t % 8) / 3);
+    const e = 0.5 - 0.5 * Math.cos(k * Math.PI);
+    clergy.priestRoot.position.set(0, STAGE_Y, STAGE_Z - 0.55 + e * 2.0);
+    clergy.priestRoot.rotation.y = Math.PI;
+  }
+  crowd.update(dt, t, beat, beat % 1, energy);
+  clergy.voice = PRIEST === 'talk' ? Math.max(0, Math.sin(t * 7.1) * 0.6 + Math.sin(t * 3.3) * 0.4) : 0;
+  clergy.update(dt, t, beat, beat % 1, energy);
+  if (Q.has('drop')) { const db = +Q.get('drop'); if (beat >= db && !H.dropped) { crowd.drop(db); H.dropped = true; } }
+  if (Q.has('kicks')) { if (Math.floor(beat) !== H.lastKb) { H.lastKb = Math.floor(beat); crowd.kick(1); } }
+  spots.forEach((s, i) => { s.target.position.x = Math.sin(t * 0.6 + i) * 3; s.target.position.z = -1 + Math.cos(t * 0.45 + i * 2) * 3; });
+}
+function simTo(t) {
+  if (t < simT) simT = Math.max(0, t - 8);
+  if (simT < t - 8) simT = t - 8;
+  while (simT < t - 1e-6) { const d = Math.min(1 / 30, t - simT); simT += d; step(simT, d); }
+}
+function render(t) { simTo(t); renderer.render(scene, camera); }
+
+const hud = document.getElementById('hud');
+let last = performance.now(), frames = 0, fpsT = last, t = FREEZE ?? 0;
+const H = (window.__h = { ready: false, fps: 0, crowd, clergy, scene, camera, renderer, render, cpu: 0 });
+H.sheet = (times, cols = 4, w = 320, h = 400, cam = null, modes = null) => {
+  const sc = document.getElementById('sheet');
+  const rows = Math.ceil(times.length / cols);
+  sc.width = cols * w; sc.height = rows * h;
+  sc.style.display = 'block';
+  renderer.setPixelRatio(1);
+  renderer.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  const g = sc.getContext('2d');
+  g.font = '13px Menlo, monospace'; g.fillStyle = '#fff';
+  times.forEach((tt, i) => {
+    if (cam) { camera.position.set(...cam[0]); camera.lookAt(...cam[1]); }
+    if (modes) clergy.mode = modes[i];
+    render(tt);
+    render(tt);
+    g.drawImage(renderer.domElement, (i % cols) * w, Math.floor(i / cols) * h);
+    g.fillText(`${modes ? modes[i] + '  ' : ''}t ${tt.toFixed(2)}  b ${(tt * BPM / 60).toFixed(2)}`, (i % cols) * w + 6, Math.floor(i / cols) * h + 16);
+  });
+  return [sc.width, sc.height];
+};
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (FREEZE === null) { t += dt; step(t, dt); simT = t; }
+  else simTo(FREEZE);
+  renderer.render(scene, camera);
+  frames++;
+  if (now - fpsT > 500) {
+    H.fps = frames * 1000 / (now - fpsT); frames = 0; fpsT = now;
+    H.cpu = crowd.cpu;
+    hud.textContent = `fps ${H.fps.toFixed(0)}  crowd cpu ${crowd.cpu.toFixed(2)} ms  people ${crowd.people.length}  tris ${(crowd.tris / 1000).toFixed(0)}k  calls ${renderer.info.render.calls}\nmood ${MOOD}  priest ${PRIEST}  e ${energy}`;
+  }
+  H.ready = true;
+  requestAnimationFrame(loop);
+}
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
