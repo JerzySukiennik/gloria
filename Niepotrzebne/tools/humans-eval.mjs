@@ -7,7 +7,7 @@ const browser = await chromium.launch({ executablePath: '/Applications/Google Ch
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => console.log('page error:', e.message));
 page.on('console', (m) => { if (m.type() === 'error') console.log('console:', m.text().slice(0, 300)); });
-await page.goto('http://localhost:8851/humans.html' + query);
+await page.goto('http://localhost:' + (process.env.HPORT || 8851) + '/humans.html' + query);
 await page.waitForFunction(() => window.__h && window.__h.ready, null, { timeout: 30000 });
 await page.waitForTimeout(+wait);
 console.log(JSON.stringify(await page.evaluate(js)));

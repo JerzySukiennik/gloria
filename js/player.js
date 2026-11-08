@@ -1,6 +1,6 @@
 // Gloria first-person player: walk the chapel, look around, sit down in a free pew seat, jump to the beat.
 import * as THREE from 'three';
-import { LATTICE, ARCH, NAVE, PEWS, ALTAR, WALL, ROOM, HALL, APSE, STAGE, HALTAR, COLUMNS, HPEWS, MIRROR_X } from './layout.js';
+import { LATTICE, ARCH, NAVE, PEWS, ALTAR, WALL, ROOM, HALL, APSE, STAGE, HALTAR, COLUMNS, HPEWS, MIRROR_X, RISER } from './layout.js';
 import { frameAt, clamp, lerp, damp } from './util.js';
 
 const CELL = 0.1, X0 = -37.6, Z0 = -12.8, NX = 424, NZ = 218, R = 0.2;
@@ -214,6 +214,7 @@ export class Player {
   stepHeight(x, z) {
     if (x > -4.2) return z < ALTAR.step.z1 && z > ALTAR.step.z0 ? ALTAR.step.h : 0;
     if (x < MIRROR_X + 4.2) return z < ALTAR.step.z1 && z > ALTAR.step.z0 ? ALTAR.step.h : 0;
+    if (Math.abs(x - RISER.x) < RISER.w / 2 && Math.abs(z - RISER.z) < RISER.d / 2) return STAGE.h + RISER.h;
     if (z < STAGE.z1 && x > STAGE.x0 - 0.6 && x < STAGE.x1 + 0.6) return STAGE.h;
     if (z < STAGE.z1 + 0.55 && Math.abs(x - HALL.xc) < 2.1) return 0.3;
     return 0;

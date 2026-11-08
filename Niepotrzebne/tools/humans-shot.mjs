@@ -5,9 +5,10 @@ const { chromium } = require('playwright-core');
 const [query = '', out = 'shot.png', W = '1280', H = '800', wait = '600', sheet = ''] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: 1 });
-page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(m.type() + ':', m.text().slice(0, 600)); });
+const seen = new Set();
+page.on('console', (m) => { const k = m.type() + ':' + m.text().slice(0, 300); if ((m.type() === 'error' || m.type() === 'warning') && !seen.has(k) && !k.includes('404')) { seen.add(k); console.log(k); } });
 page.on('pageerror', (e) => console.log('page error:', e.message));
-await page.goto('http://localhost:8851/humans.html' + query);
+await page.goto('http://localhost:' + (process.env.HPORT || 8851) + '/humans.html' + query);
 await page.waitForFunction(() => window.__h && window.__h.ready, null, { timeout: 30000 }).catch(() => console.log('not ready'));
 await page.waitForTimeout(+wait);
 if (sheet) {

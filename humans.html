@@ -19,9 +19,10 @@ details p{margin:4px 0}
 <canvas id="sheet"></canvas>
 <details><summary>humans.js API notes</summary>
 <p><b>new Congregation(scene, {places, quality, seed, fill, special})</b>; update(dt, t, beat, beatPhase, energy). Fields: slots [{x, z, yaw, taken}], people, meshes, mood, cpu (ms per update).</p>
-<p><b>mood</b> (0..1, roughly the share of people doing it; people pick moves by taste and age, re-pick every 8 or 16 beats and react to big mood changes with a personal delay): stand, kneel, sleep (sleepy people nod off while seated), sway (side to side, arms loose), clap (front claps; overhead claps grow with energy), raise (hands up V, waving), jump (jumps on the beat, half-time for slower people), mosh (pit only: crowd surges, shoves, stomps, fists), worship (raised palms, slow sway, eyes closed), headbang, peace (turn to a neighbour and shake hands), pump (fist pumping), shuffle (running man), hug (arms around neighbours, the row sways together), sing (mouths move). Energy scales amplitude.</p>
-<p><b>new Clergy(scene, {priest, server, deck = true})</b>: mode idle | orans | talk | elev | hype | dance | breakdance | dj (blended), voice, host, censerPos, priestRoot, serverRoot (move them and a walk cycle blends in), kick(amount), update(dt, t, beat, beatPhase, energy). Breakdance is a 32-beat loop that starts when the mode is set.</p>
-<p>URL: mood=sit|stand|clap|jump|hands|mosh|worship|kneel|headbang|sleep|peace|shuffle|hug|pump|mix|sitclap|sitmix, priest=&lt;mode&gt;, cam=back|side|close|face|priest|stage|pclose|dj|bd|bdfront|server|pit|wide|line|lineclose|lineside, t=seconds (freeze), e=energy, light=rave|day, n=people, fill, seed, q=low|mid|high, bpm, lineup=1|back, nopit=1, walk=1, cx cy cz lx ly lz (custom camera).</p>
+<p><b>kick(strength 0..1)</b>: call on every kick drum hit; fist pumps and horns snap to it (60 ms attack). Without calls they follow the beat phase. <b>drop(beat?)</b>: unison jump of everyone under 35 for the next bar (default: starts on the next beat). <b>tshirts(on = true)</b>: people under 35 swap jackets for bright t-shirts (scarves, hoods, beanies off).</p>
+<p><b>mood</b> (0..1, roughly the share of people doing it): stand, kneel, sleep, sway, clap, raise, jump, mosh (pit only), worship, headbang, peace, pump, shuffle, hug, sing. When jump/mosh/headbang/pump/shuffle exceed 0.35 everyone standing switches to two personal signature moves (fist pump, hakken, jump, headbang, hands up, horns, running man), neighbours differ. Elders keep their own: late clapping, handkerchief wave, hymnbook, ears covered then joining in, disapproving head shake, arm in arm. Everyone dancing nods on each beat.</p>
+<p><b>new Clergy(scene, {priest, server, deck = true, autoShed = true})</b>: mode idle | orans | talk | elev | hype | dance | breakdance | dj (blended), voice, host, censerPos, smokePos (thurible vents, world space, per frame), priestRoot, serverRoot (move them and a walk cycle blends in), kick(amount), <b>shedChasuble()</b> (tosses the chasuble to the floor, he dances in the alb; automatic on entering breakdance when autoShed), <b>wearChasuble()</b>, vestOn, update(dt, t, beat, beatPhase, energy). Breakdance: 32-beat loop from the mode switch: toprock, drop, flare, windmill, headspin, freeze held for a bar from beat 24, getup.</p>
+<p>URL: mood=sit|stand|clap|jump|hands|mosh|worship|kneel|headbang|sleep|peace|shuffle|hug|pump|mix|sitclap|sitmix, priest=&lt;mode&gt;, cam=back|side|close|face|priest|stage|pclose|dj|bd|bdfront|server|pit|wide|line|lineclose|lineside, t=seconds (freeze), e=energy, light=rave|day, n=people, fill, seed, q=low|mid|high, bpm, lineup=1|back, nopit=1, walk=1, drop=beat, kicks=1, tee=1, vest=1, cx cy cz lx ly lz (custom camera).</p>
 </details>
 <script type="module">
 import * as THREE from 'three';
@@ -107,8 +108,9 @@ if (Q.has('lineup')) {
 }
 const crowd = new Congregation(scene, { places, quality: Q.get('q') || 'mid', seed: +(Q.get('seed') || 3), fill: +(Q.get('fill') || 0.85), special });
 const clergy = new Clergy(scene, { priest: { x: 0, y: STAGE_Y, z: STAGE_Z - 0.55, yaw: Math.PI }, server: { x: 1.6, y: STAGE_Y, z: STAGE_Z + 0.2, yaw: Math.PI - 0.5 } });
-if (PRIEST === 'breakdance') { clergy.priestRoot.position.set(0, STAGE_Y, STAGE_Z + 1.45); }
+if (PRIEST === 'breakdance') { clergy.priestRoot.position.set(0, STAGE_Y, STAGE_Z + 1.45); if (!Q.has('vest')) clergy.shedChasuble(); }
 clergy.mode = PRIEST;
+if (Q.has('tee')) crowd.tshirts(true);
 
 const hemi = new THREE.HemisphereLight(0x9aa4b8, 0x2a2420, LIGHT === 'day' ? 1.4 : 0.35);
 scene.add(hemi);
@@ -176,6 +178,8 @@ function step(t, dt) {
   crowd.update(dt, t, beat, beat % 1, energy);
   clergy.voice = PRIEST === 'talk' ? Math.max(0, Math.sin(t * 7.1) * 0.6 + Math.sin(t * 3.3) * 0.4) : 0;
   clergy.update(dt, t, beat, beat % 1, energy);
+  if (Q.has('drop')) { const db = +Q.get('drop'); if (beat >= db && !H.dropped) { crowd.drop(db); H.dropped = true; } }
+  if (Q.has('kicks')) { if (Math.floor(beat) !== H.lastKb) { H.lastKb = Math.floor(beat); crowd.kick(1); } }
   spots.forEach((s, i) => { s.target.position.x = Math.sin(t * 0.6 + i) * 3; s.target.position.z = -1 + Math.cos(t * 0.45 + i * 2) * 3; });
 }
 function simTo(t) {

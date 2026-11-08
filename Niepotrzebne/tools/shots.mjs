@@ -7,7 +7,7 @@ const browser = await chromium.launch({ executablePath: '/Applications/Google Ch
 const page = await browser.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: 1 });
 page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(m.type() + ':', m.text().slice(0, 300)); });
 page.on('pageerror', (e) => console.log('page error:', e.message));
-await page.goto('http://localhost:8851/' + query);
+await page.goto('http://localhost:' + (process.env.HPORT || 8851) + '/' + query);
 await page.waitForFunction(() => window.__gl && window.__gl.ready, null, { timeout: 60000 }).catch(() => console.log('not ready'));
 if (process.env.POS) await page.evaluate((p) => { const [x, z, yaw, pitch] = p.split(',').map(Number); const pl = __gl.player; pl.pos.x = x; pl.pos.z = z; pl.yaw = yaw; pl.pitch = pitch; }, process.env.POS);
 const t0 = Date.now();

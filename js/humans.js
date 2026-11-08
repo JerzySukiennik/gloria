@@ -25,48 +25,61 @@ const NB_CROWD = 22, NB_CLERGY = 26;
 const PARENT = [-1, 0, 1, 2, 3, 4, 2, 6, 7, 8, 9, 2, 11, 12, 13, 14, 0, 16, 17, 0, 19, 20, 2, 22, 2, 24];
 const LIMB = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
 const BIND = [
-  [0, 0.94, 0], [0, 1.04, 0.005], [0, 1.22, 0.01], [0, 1.425, 0.012], [0, 1.52, 0.008], [0, 1.585, 0.0],
+  [0, 0.94, 0], [0, 1.04, 0.005], [0, 1.22, 0.01], [0, 1.425, 0.012], [0, 1.5, 0.008], [0, 1.565, 0.0],
   [-0.025, 1.385, 0.0], [-0.18, 1.39, 0.02], [-0.195, 1.1, 0.03], [-0.205, 0.845, 0.012], [-0.207, 0.757, 0.006],
   [0.025, 1.385, 0.0], [0.18, 1.39, 0.02], [0.195, 1.1, 0.03], [0.205, 0.845, 0.012], [0.207, 0.757, 0.006],
   [-0.088, 0.925, 0.0], [-0.092, 0.5, -0.005], [-0.095, 0.085, 0.02],
   [0.088, 0.925, 0.0], [0.092, 0.5, -0.005], [0.095, 0.085, 0.02],
   [0, 1.4, -0.12], [0, 0.98, -0.16], [0, 1.4, 0.13], [0, 0.98, 0.17],
 ];
-const HC = [0, 1.605, -0.008];
+const HC = [0, 1.585, -0.008];
 const HR = [0.078, 0.109, 0.098];
 
 const S_SKIN = 0, S_HAIR = 1, S_COAT = 2, S_TRIM = 3, S_PANTS = 4, S_LEGS = 5, S_SHOE = 6, S_SOLE = 7, S_INNER = 8, S_HAT = 9, S_SCARF = 10, S_GLASS = 11, S_IRIS = 12, S_LIP = 13, S_HAND = 14, S_EXTRA = 15;
 const NSLOT = 16;
-const PT = { plain: 0, quilt: 1, knit: 2, skin: 3, hair: 4, curly: 5, leather: 6, cord: 7, chasuble: 8, lace: 9, fur: 10, metal: 11, print: 12, wool: 13, satin: 14, gold: 15 };
+const PT = { plain: 0, quilt: 1, knit: 2, skin: 3, hair: 4, curly: 5, leather: 6, cord: 7, chasuble: 8, lace: 9, fur: 10, metal: 11, print: 12, wool: 13, satin: 14, gold: 15, fleece: 16, cotton: 17 };
+const PR = { glasses: 0, scarf: 1, hood: 2, book: 3, bag: 4, hanky: 5, beanie: 8, cap: 9, beret: 10, kerchief: 11, vest: 12 };
 
 class Geo {
-  constructor() { this.p = []; this.n = []; this.bi = []; this.bw = []; this.sl = []; this.fc = []; this.ao = []; this.idx = []; }
+  constructor() { this.p = []; this.n = []; this.bi = []; this.bw = []; this.sl = []; this.fc = []; this.ao = []; this.idx = []; this.mp = []; this.mn = []; this.mk = []; this.pr = []; this.prop = -1; }
   get count() { return this.p.length / 3; }
   add(pos, idx, skin, slot, o = {}) {
-    const n = pos.length / 3, nr = new Float32Array(n * 3);
-    for (let i = 0; i < idx.length; i += 3) {
-      const a = idx[i] * 3, b = idx[i + 1] * 3, c = idx[i + 2] * 3;
-      const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2];
-      const vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
-      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-      for (const k of [a, b, c]) { nr[k] += nx; nr[k + 1] += ny; nr[k + 2] += nz; }
-    }
+    const n = pos.length / 3;
+    const normals = (P) => {
+      const nr = new Float32Array(n * 3);
+      for (let i = 0; i < idx.length; i += 3) {
+        const a = idx[i] * 3, b = idx[i + 1] * 3, c = idx[i + 2] * 3;
+        const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2];
+        const vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        for (const k of [a, b, c]) { nr[k] += nx; nr[k + 1] += ny; nr[k + 2] += nz; }
+      }
+      for (let i = 0; i < n; i++) { const l = Math.hypot(nr[i * 3], nr[i * 3 + 1], nr[i * 3 + 2]) || 1; for (let k = 0; k < 3; k++) nr[i * 3 + k] /= l * (o.flip ? -1 : 1); }
+      return nr;
+    };
+    const nr = normals(pos), mr = o.morph ? normals(o.morph) : null;
     const base = this.count;
     for (let i = 0; i < n; i++) {
       const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
-      let nx = nr[i * 3], ny = nr[i * 3 + 1], nz = nr[i * 3 + 2];
-      const l = Math.hypot(nx, ny, nz) || 1;
-      nx /= l; ny /= l; nz /= l;
-      if (o.flip) { nx = -nx; ny = -ny; nz = -nz; }
+      const nx = nr[i * 3], ny = nr[i * 3 + 1], nz = nr[i * 3 + 2];
       const sk = typeof skin === 'function' ? skin(x, y, z, i) : skin;
       this.p.push(x, y, z); this.n.push(nx, ny, nz);
       this.bi.push(sk[0], sk.length > 1 ? sk[1] : sk[0]); this.bw.push(sk.length > 2 ? sk[2] : 1);
       this.sl.push(typeof slot === 'function' ? slot(x, y, z, i) : slot);
       this.fc.push(o.face ? 1 : 0);
       this.ao.push(o.ao ? clamp(o.ao(x, y, z, nx, ny, nz), 0.25, 1) : 1);
+      if (mr) { this.mp.push(o.morph[i * 3], o.morph[i * 3 + 1], o.morph[i * 3 + 2]); this.mn.push(mr[i * 3], mr[i * 3 + 1], mr[i * 3 + 2]); this.mk.push(typeof o.mk === 'function' ? o.mk(i) : o.mk); }
+      else { this.mp.push(x, y, z); this.mn.push(nx, ny, nz); this.mk.push(0); }
+      this.pr.push(o.prop ?? this.prop);
     }
     if (o.flip) for (let i = 0; i < idx.length; i += 3) this.idx.push(base + idx[i], base + idx[i + 2], base + idx[i + 1]);
     else for (let i = 0; i < idx.length; i++) this.idx.push(base + idx[i]);
+  }
+  append(H, prop) {
+    const base = this.count;
+    for (const k of ['p', 'n', 'bi', 'bw', 'sl', 'fc', 'ao', 'mp', 'mn', 'mk']) for (const v of H[k]) this[k].push(v);
+    for (const v of H.pr) this.pr.push(prop ?? v);
+    for (const i of H.idx) this.idx.push(base + i);
   }
   build() {
     const g = new THREE.InstancedBufferGeometry();
@@ -77,6 +90,10 @@ class Geo {
     g.setAttribute('aSlot', new THREE.Float32BufferAttribute(this.sl, 1));
     g.setAttribute('aFace', new THREE.Float32BufferAttribute(this.fc, 1));
     g.setAttribute('aAO', new THREE.Float32BufferAttribute(this.ao, 1));
+    g.setAttribute('aMorph', new THREE.Float32BufferAttribute(this.mp, 3));
+    g.setAttribute('aMorphN', new THREE.Float32BufferAttribute(this.mn, 3));
+    g.setAttribute('aMK', new THREE.Float32BufferAttribute(this.mk, 1));
+    g.setAttribute('aProp', new THREE.Float32BufferAttribute(this.pr, 1));
     g.setIndex(this.idx);
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
     return g;
@@ -289,7 +306,8 @@ function legPart(G, side, o = {}) {
   const R = tr
     ? [[0.07, 0.052], [0.2, 0.055], [0.36, 0.059], [0.46, 0.06], [0.52, 0.06], [0.6, 0.065], [0.75, 0.077], [0.9, 0.088], [0.98, 0.09]]
     : [[0.075, 0.037], [0.14, 0.04], [0.26, 0.05], [0.36, 0.056], [0.45, 0.053], [0.52, 0.05], [0.6, 0.057], [0.75, 0.071], [0.9, 0.085], [0.98, 0.088]];
-  const rings = R.map(([y, r]) => {
+  const RL = LQ ? R.filter((g, i) => i % 2 === 0 || i === R.length - 1) : R;
+  const rings = RL.map(([y, r]) => {
     const boot = o.boot && y < o.boot ? 0.009 : 0;
     const x = sx * lerp(0.097, 0.088, smooth(0.08, 0.93, y));
     const z = y < 0.5 ? lerp(0.012, -0.004, smooth(0.08, 0.5, y)) : -0.004 * smooth(0.98, 0.5, y);
@@ -329,10 +347,11 @@ function armPart(G, side, o = {}) {
   const cuffY = o.cuffY || 0.868;
   const R = [
     ...wrist,
-    [cuffY - 0.002, cuffR - 0.01, o.cuffSlot ?? S_COAT], [cuffY, cuffR, o.cuffSlot ?? S_COAT], [cuffY + 0.03, cuffR + 0.001, S_COAT], [1.06, 0.048 * sl, S_COAT], [1.1, 0.048 * sl, S_COAT],
+    [cuffY - 0.002, cuffR - 0.01, o.cuffSlot ?? S_EXTRA], [cuffY, cuffR, o.cuffSlot ?? S_EXTRA], [cuffY + 0.03, cuffR + 0.001, S_COAT], [1.06, 0.048 * sl, S_COAT], [1.1, 0.048 * sl, S_COAT],
     [1.23, 0.055 * sl, S_COAT], [1.36, 0.056 * sl, S_COAT], [1.4, 0.053 * sl, S_COAT], [1.422, 0.042 * sl, S_COAT], [1.436, 0.02 * sl, S_COAT],
   ];
-  const rings = R.map(([y, r, slot]) => { const [x, z] = at(Math.min(y, J[0][1])); return { c: [x, y, z], rx: r, rz: r * 1.04, n: 2.1, slot }; });
+  const RR = LQ ? R.filter((g, i) => g[2] !== S_SKIN && (i % 2 === 1 || i === R.length - 1)) : R;
+  const rings = RR.map(([y, r, slot]) => { const [x, z] = at(Math.min(y, J[0][1])); return { c: [x, y, z], rx: r, rz: r * 1.04, n: 2.1, slot }; });
   const seg = sg(9, 6);
   const [pos, idx] = loft(rings, seg, 'y', false, true);
   const slots = [];
@@ -345,10 +364,10 @@ function armPart(G, side, o = {}) {
     if (y > 1.07) return [ar, fo, smooth(1.07, 1.13, y)];
     if (y > 0.868) return [fo, fo, 1];
     return [fo, ha, smooth(0.84, 0.868, y)];
-  }, (x, y, z, i) => slots[i], { ao: (x, y, z, nx) => 1 - 0.22 * smooth(0.0, 0.9, -nx * s) * smooth(1.0, 1.3, y) });
+  }, (x, y, z, i) => (slots[i] === S_COAT && y < 1.17 && !o.sleeveSlot ? S_EXTRA : slots[i] === S_COAT && o.sleeveSlot !== undefined && y < 1.17 ? o.sleeveSlot : slots[i]), { ao: (x, y, z, nx) => 1 - 0.22 * smooth(0.0, 0.9, -nx * s) * smooth(1.0, 1.3, y) });
 }
 
-function handPart(G, side, o = {}) {
+function handPartLow(G, side, o = {}) {
   const s = side;
   const hx = BIND[s < 0 ? HAL : HAR][0], fx = BIND[s < 0 ? FIL : FIR][0];
   const ha = s < 0 ? HAL : HAR, fi = s < 0 ? FIL : FIR;
@@ -371,6 +390,81 @@ function handPart(G, side, o = {}) {
   G.add(th[0], th[1], [ha, ha, 1], slot);
   const tip = ellipsoid([hx + s * 0.013, 0.757, -0.043], [0.009, 0.007, 0.009], sg(5, 3), sg(4, 3));
   G.add(tip[0], tip[1], [ha, ha, 1], slot);
+}
+
+function handPart(G, side, o = {}) {
+  if (LQ) { const ha = side < 0 ? HAL : HAR, hx = BIND[ha][0]; const m = ellipsoid([hx, 0.79, 0.01], [0.014, 0.052, 0.033], 5, 4); G.add(m[0], m[1], [ha, ha, 1], o.slot ?? S_HAND); return; }
+  const s = side;
+  const hx = BIND[s < 0 ? HAL : HAR][0];
+  const ha = s < 0 ? HAL : HAR;
+  const slot = o.slot ?? S_HAND;
+  const K = 0.772;
+  const palm = loft([
+    { c: [hx - s * 0.001, K - 0.004, 0.009], rx: 0.011, rz: 0.033, n: 2.8, cap: 0.002 },
+    { c: [hx - s * 0.001, K + 0.012, 0.009], rx: 0.013, rz: 0.035, n: 3 },
+    { c: [hx, 0.81, 0.01], rx: 0.014, rz: 0.033, n: 3 },
+    { c: [hx, 0.842, 0.012], rx: 0.013, rz: 0.026, n: 2.6, cap: 0.004 },
+  ], 6, 'y', true, true);
+  G.add(palm[0], palm[1], [ha, ha, 1], slot, { ao: (x, y, z, nx) => 1 - 0.1 * smooth(0, 1, -nx * s) });
+  const vx = -s;
+  const curlAt = (d, L) => {
+    const j = [0, 0.45 * L, 0.75 * L], th = [1.5, 1.75, 0.95];
+    let u = 0, v = 0, a = 0, left = d;
+    for (let k = 0; k < 3; k++) {
+      a += th[k] * smooth(-0.004, 0.004, d - j[k]);
+      const segEnd = k < 2 ? j[k + 1] : 1e9;
+      const len = Math.min(Math.max(0, left), segEnd - j[k]);
+      u += Math.cos(a) * len; v += Math.sin(a) * len;
+      left -= len;
+    }
+    return [u, v, a];
+  };
+  const F = [[-0.017, 0.0078, 0.062, 2], [-0.0005, 0.0081, 0.068, 1], [0.015, 0.0076, 0.064, 1], [0.029, 0.0066, 0.05, 3]];
+  for (const [dz, r, L, mk] of F) {
+    const z0 = 0.009 + dz;
+    const T = [1.0, 0.9, 0.62, 0.3, 0.0];
+    const seg = 4;
+    const pos = [], mor = [], idx = [];
+    const ring = (t) => {
+      const d = t * L - 0.006, rr = r * (1 - 0.15 * t) * (t > 0.97 ? 0.55 : 1);
+      const [cu, cv, a] = curlAt(Math.max(0, d), L);
+      for (let k = 0; k < seg; k++) {
+        const th = (k / seg) * TAU;
+        const ov = Math.sin(th) * rr * 0.9, oz = Math.cos(th) * rr;
+        const zz = z0 + dz * 0.12 * t + oz;
+        pos.push(hx + vx * ov, K + 0.006 - (t * L), zz);
+        const du = cu + (d < 0 ? d : 0), dv = cv;
+        mor.push(hx + vx * (dv + ov * Math.cos(a)), K - 0.006 + 0.012 - du - 0.006 + ov * Math.sin(a) * 1, zz);
+      }
+    };
+    for (const t of T) ring(t);
+    for (let i = 0; i < T.length - 1; i++) for (let k = 0; k < seg; k++) {
+      const a = i * seg + k, b = i * seg + ((k + 1) % seg), c = a + seg, d = b + seg;
+      idx.push(a, b, c, b, d, c);
+    }
+    const tip = [hx, K + 0.006 - L - r * 0.4, z0 + dz * 0.12];
+    const [cu, cv, ca] = curlAt(L - 0.006 + r * 0.4, L);
+    const ti = pos.length / 3;
+    pos.push(...tip); mor.push(hx + vx * cv, K - cu, z0 + dz * 0.12);
+    for (let k = 0; k < seg; k++) idx.push(ti, (k + 1) % seg, k);
+    G.add(pos, idx, [ha, ha, 1], slot, { morph: mor, mk, ao: (x, y) => 0.9 + 0.1 * smooth(K - 0.04, K, y) });
+  }
+  const B = [hx - s * 0.004, 0.832, -0.019], M = [hx - s * 0.009, 0.803, -0.037], Tp = [hx - s * 0.011, 0.776, -0.044];
+  const th = tube([B, M, Tp], (k) => 0.0105 - 0.0025 * k, 4);
+  const tc = ellipsoid(Tp, [0.008, 0.008, 0.008], 5, 4);
+  const pos = [...th[0], ...tc[0]], idx = [...th[1], ...tc[1].map((i) => i + th[0].length / 3)];
+  const v1 = new THREE.Vector3(Tp[0] - B[0], Tp[1] - B[1], Tp[2] - B[2]), v2 = new THREE.Vector3(hx - s * 0.027 - B[0], 0.778 - B[1], -0.006 - B[2]);
+  const q = new THREE.Quaternion().setFromUnitVectors(v1.clone().normalize(), v2.clone().normalize());
+  const sc = v2.length() / v1.length() * 0.95;
+  const mor = [];
+  const tv = new THREE.Vector3();
+  for (let i = 0; i < pos.length; i += 3) {
+    tv.set(pos[i] - B[0], pos[i + 1] - B[1], pos[i + 2] - B[2]).applyQuaternion(q);
+    const along = tv.length();
+    tv.multiplyScalar(lerp(1, sc, clamp(along / 0.06)));
+    mor.push(B[0] + tv.x, B[1] + tv.y, B[2] + tv.z);
+  }
+  G.add(pos, idx, [ha, ha, 1], slot, { morph: mor, mk: 4 });
 }
 
 function headPoint(x, y, z) {
@@ -419,7 +513,7 @@ function headPart(G, o = {}) {
     { c: [0, ny + 0.009, nz - 0.082], rx: 0.008, rz: 0.0065, n: 2.2, cap: 0.002 },
   ], sg(8, 4), 'y', true, true);
   G.add(nose[0], nose[1], [HD, HD, 1], S_SKIN, { face: true, ao: (x, y) => 1 - 0.2 * smooth(ny - 0.036, ny - 0.047, y) });
-  for (const s of [-1, 1]) {
+  for (const s of LQ ? [] : [-1, 1]) {
     const ear = ellipsoid([s * 0.0775, ny - 0.012, nz + 0.014], [0.0085, 0.029, 0.017], sg(7, 4), sg(5, 3), (p, ux, uy, uz) => {
       const dy = p[1] - (ny - 0.012), dz = p[2] - (nz + 0.014);
       p[2] += dy * 0.22;
@@ -435,13 +529,13 @@ function neckPart(G, o = {}) {
   const r = o.r || 0.054;
   const rings = [
     { c: [0, 1.4, 0.012], rx: r + 0.004, rz: r, n: 2 },
-    { c: [0, 1.45, 0.014], rx: r, rz: r - 0.003, n: 2 },
-    { c: [0, 1.5, 0.016], rx: r - 0.004, rz: r - 0.006, n: 2 },
-    { c: [0, 1.56, 0.012], rx: r - 0.006, rz: r - 0.008, n: 2 },
+    { c: [0, 1.44, 0.014], rx: r, rz: r - 0.003, n: 2 },
+    { c: [0, 1.49, 0.016], rx: r - 0.004, rz: r - 0.006, n: 2 },
+    { c: [0, 1.54, 0.012], rx: r - 0.006, rz: r - 0.008, n: 2 },
   ];
   const [pos, idx] = loft(rings, sg(12, 6), 'y', false, false);
-  G.add(pos, idx, (x, y) => (y < 1.44 ? [NK, CH, smooth(1.4, 1.44, y)] : y > 1.53 ? [HD, NK, smooth(1.53, 1.56, y)] : [NK, NK, 1]), S_SKIN,
-    { ao: (x, y, z) => 1 - 0.3 * smooth(1.49, 1.54, y) * smooth(0.0, -0.04, z - 0.012) - 0.2 * smooth(1.44, 1.4, y) });
+  G.add(pos, idx, (x, y) => (y < 1.44 ? [NK, CH, smooth(1.4, 1.44, y)] : y > 1.51 ? [HD, NK, smooth(1.51, 1.54, y)] : [NK, NK, 1]), S_SKIN,
+    { ao: (x, y, z) => 1 - 0.3 * smooth(1.47, 1.52, y) * smooth(0.0, -0.04, z - 0.012) - 0.2 * smooth(1.44, 1.4, y) });
 }
 
 function collarPart(G, o = {}) {
@@ -508,14 +602,16 @@ function shell(G, st, slot, skin = [HD, HD, 1]) {
   for (let j = 0; j < NC; j++) {
     const az = (j / NC) * TAU;
     const a = Math.abs(fract(az / TAU + 0.5) * TAU - PI);
-    const lo = st.lo(a, az), hi = st.hi ? st.hi(a, az) : PI / 2;
-    cols.push(hi - lo > 0.03 ? { az, a, lo, hi } : null);
+    const jag = (st.jag ?? 0.07) * (0.35 + 0.65 * smooth(0.6, 2.2, a));
+    const lo = st.lo(a, az) + (hash(j * 7.31 + (st.seed || 1)) - 0.5) * jag * 2 + (hash(j * 3.7 + 11) - 0.5) * jag;
+    const hi = st.hi ? st.hi(a, az) : PI / 2;
+    cols.push(hi - lo > 0.03 ? { az, a, lo, hi, lk: 1 + (hash(j * 5.13 + 2) - 0.5) * 0.5 } : null);
   }
   const pos = [], idx = [], inner = [];
   const elC = st.curtain ?? -9;
   const point = (c, el, inward) => {
     const { az, a } = c;
-    const t = st.thick(a, el, c);
+    const t = st.thick(a, el, c) * lerp(1, c.lk, smooth(c.lo + 0.5, c.lo, el));
     const ee = Math.max(el, elC);
     const s = scalp(az, ee);
     const dx = s[0] - HC[0], dy = s[1] - HC[1], dz = s[2] - HC[2];
@@ -627,14 +723,14 @@ function hatGeo(kind) {
     shell(G, {
       lo: (a) => table([[0, 0.34], [0.8, 0.22], [1.55, -0.02], [2.4, -0.2], [3.15, -0.26]], a),
       thick: (a, el, c) => 0.021 + 0.008 * smooth(c.lo + 0.2, c.lo + 0.16, el) + 0.005 * smooth(0.9, 1.5, el),
-      rows: 9, cols: 24,
+      rows: 7, cols: 18,
     }, S_HAT);
   } else if (kind === 'cap') {
     shell(G, {
       lo: (a) => table([[0, 0.42], [1.0, 0.36], [1.6, 0.2], [3.15, 0.05]], a),
       thick: (a, el) => 0.017 + 0.01 * smooth(0.4, 1.2, el),
       warp: (x, y, z, az, el) => { const top = HC[1] + 0.095; const yy = y > top ? top + (y - top) * 0.3 : y; return [x, yy, z - 0.008 * smooth(0.8, 1.5, el) * Math.cos(az)]; },
-      rows: 7, cols: 22,
+      rows: 6, cols: 18,
     }, S_HAT);
     const pos = [], idx = [];
     const N = 12;
@@ -656,7 +752,7 @@ function hatGeo(kind) {
     G.add(pos, idx, [HD, HD, 1], S_HAT, { ao: (x, y) => 0.85 });
   } else if (kind === 'beret') {
     const c = [HC[0] + 0.008, HC[1] + 0.078, HC[2] + 0.004];
-    const b = ellipsoid(c, [0.102, 0.034, 0.108], 18, 9, (p, x, y, z) => {
+    const b = ellipsoid(c, [0.102, 0.034, 0.108], 14, 7, (p, x, y, z) => {
       const r = Math.hypot(x, z);
       let py = p[1] - c[1];
       if (y < 0) py *= 0.55;
@@ -670,7 +766,7 @@ function hatGeo(kind) {
     shell(G, {
       lo: (a) => table([[0, 0.36], [0.55, 0.3], [0.85, -0.2], [1.1, -0.62], [2.0, -0.72], [3.15, -0.8]], a),
       thick: (a, el, c) => 0.018 + 0.004 * smooth(0.5, 1.5, el) + 0.006 * smooth(c.lo + 0.08, c.lo, el),
-      curtain: -0.25, flare: 0.012, drop: 0.85, inThick: 0.01, rows: 10, cols: 24,
+      curtain: -0.25, flare: 0.012, drop: 0.85, inThick: 0.01, rows: 8, cols: 18,
       warp: (x, y, z, az, el) => { const front = Math.cos(az); return [x * (1 - 0.12 * smooth(-0.3, -0.8, el) * Math.max(0, front)), y, z]; },
     }, S_HAT);
     const k = ellipsoid([HC[0], HC[1] - 0.09, HC[2] + 0.11], [0.03, 0.035, 0.016], 8, 6);
@@ -682,19 +778,25 @@ function hatGeo(kind) {
 function glassesGeo() {
   const G = new Geo();
   const y = HC[1] + 0.002, z = HC[2] - 0.099;
+  const side = (s, az, el, off) => {
+    const p = scalp(az * s, el);
+    const dx = p[0] - HC[0], dy = p[1] - HC[1], dz = p[2] - HC[2], l = Math.hypot(dx, dy, dz);
+    return [p[0] + (dx / l) * off, p[1] + (dy / l) * off, p[2] + (dz / l) * off];
+  };
   for (const s of [-1, 1]) {
     const pts = [];
     const cx = s * 0.032;
-    for (let i = 0; i < 14; i++) {
-      const t = (i / 14) * TAU;
+    for (let i = 0; i < 12; i++) {
+      const t = (i / 12) * TAU;
       const c = Math.cos(t), sn = Math.sin(t);
       const px = cx + 0.0215 * Math.sign(c) * Math.pow(Math.abs(c), 0.7);
       const py = y + 0.0155 * Math.sign(sn) * Math.pow(Math.abs(sn), 0.75) - (sn < 0 ? 0.002 : 0);
       pts.push([px, py, z + 0.004 * Math.abs(px - cx) / 0.02 * Math.abs(px) / 0.05]);
     }
-    const f = tube(pts, 0.0026, 4, true);
+    const f = tube(pts, 0.0026, 3, true);
     G.add(f[0], f[1], [HD, HD, 1], S_GLASS);
-    const tp = tube([[s * 0.054, y + 0.006, z + 0.006], [s * 0.074, y + 0.008, z + 0.03], [s * 0.081, y + 0.006, HC[2] + 0.0], [s * 0.08, y - 0.006, HC[2] + 0.02], [s * 0.075, y - 0.02, HC[2] + 0.028]], 0.002, 3);
+    const hinge = [s * 0.054, y + 0.006, z + 0.006];
+    const tp = tube([hinge, side(s, 0.95, 0.07, 0.006), side(s, 1.3, 0.08, 0.0035), side(s, 1.62, 0.07, 0.003), side(s, 1.86, -0.02, 0.003), side(s, 1.95, -0.16, 0.0025)], 0.002, 3);
     G.add(tp[0], tp[1], [HD, HD, 1], S_GLASS);
   }
   const br = tube([[-0.0105, y + 0.004, z - 0.001], [0, y + 0.007, z - 0.003], [0.0105, y + 0.004, z - 0.001]], 0.002, 4);
@@ -722,15 +824,92 @@ function scarfGeo() {
   return G;
 }
 
+function hoodGeo() {
+  const G = new Geo();
+  const h = ellipsoid([0, 1.405, 0.098], [0.125, 0.072, 0.058], 12, 8, (p, x, y, z) => {
+    const fz = z < 0 ? 0.35 : 1;
+    return [p[0] * (1 - 0.15 * Math.max(0, y)), p[1], 0.098 + (p[2] - 0.098) * fz + 0.012 * Math.max(0, -y)];
+  });
+  G.add(h[0], h[1], (x, y) => [CH, NK, smooth(1.43, 1.47, y) * 0.5 + 0.5], S_COAT, { ao: (x, y, z) => 0.75 + 0.25 * smooth(0.09, 0.15, z) });
+  return G;
+}
+
+function bookGeo() {
+  const G = new Geo();
+  const c = [0, 1.1, -0.245], w = 0.13, hh = 0.185, th = 0.028, tilt = 0.55;
+  const add = (cx, cy, cz, sx, sy, sz, slot) => {
+    const b = new THREE.BoxGeometry(sx, sy, sz);
+    b.rotateX(tilt);
+    b.translate(cx, cy, cz);
+    const pos = Array.from(b.attributes.position.array), idx = Array.from(b.index.array);
+    G.add(pos, idx, [CH, CH, 1], slot);
+  };
+  add(c[0], c[1], c[2], w, hh, th, S_INNER);
+  add(c[0] + 0.003, c[1] - 0.004, c[2] + 0.002, w - 0.008, hh - 0.012, th + 0.002, S_LIP);
+  return G;
+}
+
+function bagGeo() {
+  const G = new Geo();
+  const fx = -0.2, fy = 0.98, fz = 0.025;
+  const body = new THREE.BoxGeometry(0.075, 0.22, 0.17, 1, 2, 1);
+  const p = body.attributes.position;
+  for (let i = 0; i < p.count; i++) { const z = p.getZ(i); p.setX(i, p.getX(i) * (1 - 0.25 * (z + 0.085) / 0.17)); }
+  body.translate(fx, fy, fz + 0.2);
+  G.add(Array.from(body.attributes.position.array), Array.from(body.index.array), [FOL, FOL, 1], S_SHOE, { ao: (x, y, z) => 0.8 + 0.2 * smooth(fz + 0.3, fz + 0.12, z) });
+  for (const dy of [-0.05, 0.05]) {
+    const t = tube([[fx, fy + dy, fz + 0.115], [fx - 0.045, fy + dy * 0.6, fz + 0.04], [fx, fy + dy * 0.5, fz - 0.04], [fx + 0.045, fy + dy * 0.6, fz + 0.04], [fx, fy + dy, fz + 0.115]], 0.005, 4);
+    G.add(t[0], t[1], [FOL, FOL, 1], S_SHOE);
+  }
+  return G;
+}
+
+function hankyGeo() {
+  const G = new Geo();
+  const hx = BIND[HAR][0], y0 = 0.715;
+  const pos = [], i1 = [], i2 = [];
+  const N = 4;
+  for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+    const u = i / N, v = j / N;
+    pos.push(hx + 0.01 * Math.sin(u * 6 + v * 3), y0 - v * 0.16 - 0.015 * Math.sin(u * PI), -0.07 + u * 0.15 + 0.02 * v * Math.sin(v * 5));
+  }
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const a = i * (N + 1) + j, b = a + N + 1; i1.push(a, b, a + 1, b, b + 1, a + 1); i2.push(a, a + 1, b, b, a + 1, b + 1); }
+  G.add(pos, i1, [HAR, HAR, 1], S_LIP, { ao: () => 0.95 });
+  G.add(pos.slice(), i2, [HAR, HAR, 1], S_LIP, { ao: () => 0.85 });
+  return G;
+}
+
+function accGeo() {
+  const G = new Geo();
+  G.append(glassesGeo(), PR.glasses);
+  G.append(scarfGeo(), PR.scarf);
+  G.append(hoodGeo(), PR.hood);
+  return G;
+}
+
+function propsGeo() {
+  const G = new Geo();
+  G.append(bookGeo(), PR.book);
+  G.append(bagGeo(), PR.bag);
+  G.append(hankyGeo(), PR.hanky);
+  return G;
+}
+
+function hatsGeo() {
+  const G = new Geo();
+  for (const k of HATS) G.append(hatGeo(k), PR[k]);
+  return G;
+}
+
 const FACES = [
-  { age: 2, male: 1, brow: 0.0055, wr: 1.0, lip: [0.9, 0.76, 0.73] },
-  { age: 2, male: 1, brow: 0.005, wr: 0.85, lip: [0.9, 0.76, 0.73], mous: 1 },
-  { age: 2, male: 0, brow: 0.0028, wr: 0.9, lip: [0.87, 0.66, 0.66] },
-  { age: 2, male: 0, brow: 0.0032, wr: 0.7, lip: [0.84, 0.6, 0.62], blush: 1 },
-  { age: 1, male: 1, brow: 0.0048, wr: 0.35, lip: [0.9, 0.75, 0.72], stub: 1 },
-  { age: 1, male: 0, brow: 0.0032, wr: 0.25, lip: [0.82, 0.56, 0.58], blush: 1, liner: 1 },
-  { age: 0, male: 0, brow: 0.003, wr: 0, lip: [0.9, 0.7, 0.7], blush: 1 },
-  { age: 2, male: 1, brow: 0.006, wr: 1.0, lip: [0.9, 0.76, 0.73], beard: 1 },
+  { age: 2, male: 1, brow: 0.0055, wr: 1.0, lip: [0.95, 0.86, 0.83] },
+  { age: 2, male: 1, brow: 0.005, wr: 0.85, lip: [0.95, 0.86, 0.83], mous: 1 },
+  { age: 2, male: 0, brow: 0.0028, wr: 0.9, lip: [0.93, 0.81, 0.8] },
+  { age: 2, male: 0, brow: 0.0032, wr: 0.7, lip: [0.91, 0.77, 0.77], blush: 1 },
+  { age: 1, male: 1, brow: 0.0048, wr: 0.35, lip: [0.95, 0.86, 0.83], stub: 1 },
+  { age: 1, male: 0, brow: 0.0032, wr: 0.25, lip: [0.86, 0.66, 0.66], blush: 1, liner: 1 },
+  { age: 0, male: 0, brow: 0.003, wr: 0, lip: [0.94, 0.8, 0.79], blush: 1 },
+  { age: 2, male: 1, brow: 0.006, wr: 1.0, lip: [0.95, 0.86, 0.83], beard: 1 },
 ];
 
 function faceAtlas() {
@@ -793,10 +972,10 @@ function faceAtlas() {
     c.quadraticCurveTo(0.012, -0.077, 0, -0.0765);
     c.quadraticCurveTo(-0.012, -0.077, -0.0225, -0.066);
     c.fill();
-    c.fillStyle = rgb([F.lip[0] * 0.92, F.lip[1] * 0.85, F.lip[2] * 0.85], 1);
+    c.fillStyle = rgb([F.lip[0] * 0.97, F.lip[1] * 0.94, F.lip[2] * 0.94], 1);
     c.beginPath(); c.ellipse(0, -0.0705, 0.012, 0.003, 0, 0, TAU); c.fill();
     const droop = 0.0015 * wr;
-    line(c, [[-0.0225, -0.0665 - droop], [-0.012, -0.0655], [0, -0.0662], [0.012, -0.0655], [0.0225, -0.0665 - droop]], 0.0013, 'rgba(95,55,52,0.85)');
+    line(c, [[-0.0225, -0.0665 - droop], [-0.012, -0.0655], [0, -0.0662], [0.012, -0.0655], [0.0225, -0.0665 - droop]], 0.0011, 'rgba(120,82,76,0.7)');
     curve(c, [-0.003, -0.048], [-0.003, -0.058], [-0.004, -0.053], 0.0012, 'rgba(160,120,112,0.3)');
     curve(c, [0.003, -0.048], [0.003, -0.058], [0.004, -0.053], 0.0012, 'rgba(160,120,112,0.3)');
     if (F.mous) {
@@ -836,6 +1015,10 @@ attribute float aSlot;
 attribute float aFace;
 attribute float aAO;
 attribute float aPid;
+attribute vec3 aMorph;
+attribute vec3 aMorphN;
+attribute float aMK;
+attribute float aProp;
 varying vec3 vB;
 varying vec3 vCol;
 varying vec4 vMat;
@@ -845,24 +1028,37 @@ flat varying float vPid;
 
 const VNORM = `
 int pid = int(aPid + 0.5);
+vec3 pos = position, nrm = normal;
+if (aMK > 0.5) {
+  vec4 hp = texelFetch(uBones, ivec2(PARAM_X + 1, pid), 0);
+  bool rt = int(aBone.x + 0.5) == 14;
+  float k = rt ? hp.y : hp.x, ex = rt ? hp.w : hp.z;
+  int mk = int(aMK + 0.5);
+  if (mk == 2) k *= 1.0 - clamp(ex, 0.0, 1.0);
+  else if (mk == 3) k *= 1.0 - clamp(ex - 1.0, 0.0, 1.0);
+  pos = mix(position, aMorph, k);
+  nrm = normalize(mix(normal, aMorphN, k));
+}
+float hideK = 1.0;
+if (aProp > -0.5) { int msk = int(texelFetch(uBones, ivec2(PARAM_X + 2, pid), 0).x + 0.5); if (((msk >> int(aProp + 0.5)) & 1) == 0) hideK = 0.0; }
 int bA = int(aBone.x + 0.5) * 3;
 int bB = int(aBone.y + 0.5) * 3;
-float wA = aW, wB = 1.0 - aW;
+float wA = aW * hideK, wB = (1.0 - aW) * hideK;
 vec4 r0 = texelFetch(uBones, ivec2(bA, pid), 0) * wA + texelFetch(uBones, ivec2(bB, pid), 0) * wB;
 vec4 r1 = texelFetch(uBones, ivec2(bA + 1, pid), 0) * wA + texelFetch(uBones, ivec2(bB + 1, pid), 0) * wB;
 vec4 r2 = texelFetch(uBones, ivec2(bA + 2, pid), 0) * wA + texelFetch(uBones, ivec2(bB + 2, pid), 0) * wB;
-vec3 objectNormal = vec3(dot(r0.xyz, normal), dot(r1.xyz, normal), dot(r2.xyz, normal));
+vec3 objectNormal = vec3(dot(r0.xyz, nrm), dot(r1.xyz, nrm), dot(r2.xyz, nrm));
 #ifdef USE_TANGENT
 vec3 objectTangent = vec3(tangent.xyz);
 #endif
 `;
 
 const VBEGIN = `
-vec3 transformed = vec3(dot(r0.xyz, position) + r0.w, dot(r1.xyz, position) + r1.w, dot(r2.xyz, position) + r2.w);
+vec3 transformed = vec3(dot(r0.xyz, pos) + r0.w, dot(r1.xyz, pos) + r1.w, dot(r2.xyz, pos) + r2.w);
 #ifdef USE_ALPHAHASH
 vPosition = vec3(position);
 #endif
-vB = position;
+vB = pos;
 int sl = int(aSlot + 0.5) * 2;
 vec4 pc = texelFetch(uPal, ivec2(sl, pid), 0);
 vec4 pm = texelFetch(uPal, ivec2(sl + 1, pid), 0);
@@ -910,19 +1106,22 @@ float ang = atan(hp.x, hp.z);
 float fine = 1.0 - smoothstep(0.0007, 0.0025, aaE);
 float mid = 1.0 - smoothstep(0.004, 0.012, aaE);
 if (pat == 1) {
-  float q = fract(B.y / 0.068 + 0.3);
+  float sp = vMat.w > 0.01 ? vMat.w : 0.075;
+  float q = fract((B.y + 0.006 * sin(ang * 3.0 + B.x * 20.0)) / sp + 0.3);
   float puff = sqrt(max(0.0, sin(q * 3.14159)));
-  hB = puff * 0.0035 * mid;
-  col *= mix(0.85, 0.7 + 0.3 * puff, mid);
+  hB = puff * 0.0026 * mid;
+  col *= mix(0.9, 0.8 + 0.2 * puff, mid);
 } else if (pat == 2) {
   float rib = mix(0.5, sin(ang * 70.0) * 0.5 + 0.5, 1.0 - smoothstep(0.07, 0.12, hp.y));
   float row = sin(B.y * 1400.0) * 0.5 + 0.5;
   hB = (rib * 0.8 + row * 0.2) * 0.0012 * fine;
   col *= mix(0.93, 0.86 + 0.14 * rib, fine);
 } else if (pat == 4) {
-  float s = sin(ang * 70.0 + vnz(vec3(B.x, B.y * 3.0, B.z) * 40.0) * 7.0);
-  hB = s * 0.0004 * fine;
-  col *= 0.97 + 0.06 * s * fine + 0.1 * (vnz(B * 45.0) - 0.5);
+  float n1 = vnz(vec3(ang * 14.0, hp.y * 9.0, 1.7));
+  float n2 = vnz(vec3(ang * 46.0, hp.y * 24.0, 4.1));
+  float n3 = vnz(B * 700.0);
+  hB = (n1 * 0.55 + n2 * 0.45 * fine) * 0.0014 + n3 * 0.0003 * fine;
+  col *= 0.8 + 0.28 * n1 + 0.12 * (n2 - 0.5) * fine + 0.06 * (n3 - 0.5) * fine;
 } else if (pat == 5) {
   float n = vnz(B * 230.0);
   hB = n * 0.0025 * mid;
@@ -964,6 +1163,12 @@ if (pat == 1) {
   float d2 = smoothstep(0.66, 0.74, vnz(q + 17.0));
   col = mix(col, vec3(0.92, 0.86, 0.7), d * 0.85);
   col = mix(col, col.bgr * 0.8 + 0.1, d2 * 0.7);
+} else if (pat == 16) {
+  float n = vnz(B * 340.0);
+  hB = n * 0.0018 * mid;
+  col *= 0.9 + 0.13 * n;
+} else if (pat == 17) {
+  col *= 0.96 + 0.07 * vnz(B * 420.0) * fine;
 } else if (pat == 13) {
   col *= 0.9 + 0.12 * vnz(B * 260.0) + 0.06 * (vnz(B * 900.0) - 0.5);
 } else if (pat == 3 && vAF.y > 0.5) {
@@ -1041,7 +1246,7 @@ function humanMaterial(boneTex, palTex, faceTex, nb, opts = {}) {
 
 class RigPool {
   constructor(nb, max) {
-    this.nb = nb; this.max = max; this.w = nb * 3 + 1;
+    this.nb = nb; this.max = max; this.w = nb * 3 + 3;
     this.data = new Float32Array(this.w * 4 * max);
     this.tex = new THREE.DataTexture(this.data, this.w, max, THREE.RGBAFormat, THREE.FloatType);
     this.pal = new Float32Array(NSLOT * 2 * 4 * max);
@@ -1117,6 +1322,8 @@ class Rig {
     this.armW = new Uint8Array(2);
     this.legT = new Float32Array(6); this.legP = new Float32Array(6); this.legOn = new Uint8Array(2);
     this.fx = new Float32Array(4);
+    this.hand = new Float32Array(4);
+    this.misc = new Float32Array(4);
     this.len = new Float32Array(4);
     this.hw = new Float32Array(2); this.hwP = new Float32Array(2);
     this.setProportions({});
@@ -1261,21 +1468,34 @@ class Rig {
         D[o++] = m0; D[o++] = m1; D[o++] = m2; D[o++] = W[w + 9 + r] - (m0 * bx + m1 * by + m2 * bz);
       }
     }
-    D[o] = this.fx[0]; D[o + 1] = this.fx[1]; D[o + 2] = this.fx[2]; D[o + 3] = this.fx[3];
+    for (let k = 0; k < 4; k++) { D[o + k] = this.fx[k]; D[o + 4 + k] = this.hand[k]; D[o + 8 + k] = this.misc[k]; }
   }
 }
 
-const U_REST = 0, U_CLAP = 1, U_UP = 2, U_PUMP = 3, U_BANG = 4, U_WORSHIP = 5, U_HUG = 6, U_MOSH = 7, U_SWAY = 8, U_RUN = 9, U_CLAPHI = 10;
-const NU = 11;
-const L_STILL = 0, L_SWAY = 1, L_BOUNCE = 2, L_JUMP = 3, L_SHUFFLE = 4, L_MOSH = 5;
-const NL = 6;
-const UCN = 46, LCN = 17;
+const U_REST = 0, U_CLAP = 1, U_UP = 2, U_PUMP = 3, U_BANG = 4, U_WORSHIP = 5, U_HUG = 6, U_MOSH = 7, U_SWAY = 8, U_RUN = 9, U_CLAPHI = 10, U_HORNS = 11;
+const E_CLAP = 12, E_WAVE = 13, E_BOOK = 14, E_EARS = 15, E_SHAKE = 16, E_ARMIN = 17;
+const NU = 18;
+const L_STILL = 0, L_SWAY = 1, L_BOUNCE = 2, L_JUMP = 3, L_SHUFFLE = 4, L_MOSH = 5, L_HAKKEN = 6;
+const NL = 7;
+const UCN = 51, LCN = 17;
 const ua = (si) => 14 + si * 14;
+const snap = (tau, atk = 0.06, hold = 0.07, rel = 5) => (tau < 0 ? 0 : tau < atk ? Math.sin((tau / atk) * PI / 2) : tau < atk + hold ? 1 : Math.exp(-(tau - atk - hold) * rel));
 
 function arm(U, si, tx, ty, tz, px, py, pz, fr, tw, flex, dev, htw, curl, cy = 0, cz = 0) {
   const o = ua(si);
   U[o] = tx; U[o + 1] = ty; U[o + 2] = tz; U[o + 3] = px; U[o + 4] = py; U[o + 5] = pz; U[o + 6] = fr; U[o + 7] = tw;
   U[o + 8] = flex; U[o + 9] = dev; U[o + 10] = htw; U[o + 11] = curl; U[o + 12] = cy; U[o + 13] = cz;
+}
+
+function restArm(U, si, k, c) {
+  const s = si ? 1 : -1;
+  if (k === 0) arm(U, si, s * 0.205, -0.36, 0.0, s * 0.3, 0, 1, 0.6, 0, 0.1, 0, 0, 0.35);
+  else if (k === 1) arm(U, si, s * 0.04, -0.3, -0.19, s * 1, -0.4, 0.6, 0.5, s * 0.8, 0.2, -0.2, 0, 0.35);
+  else if (k === 2) arm(U, si, s * 0.06, -0.36, 0.16, s * 1, 0, -0.4, 0.5, 0, 0.3, 0, 0, 0.45);
+  else if (k === 3) arm(U, si, s * 0.17, -0.33, -0.05, s * 1, 0.2, 0.6, 0.6, 0, 0.6, 0, 0, 0.8);
+  else if (k === 4) arm(U, si, -s * 0.09, -0.12 - si * 0.025, -0.19, s * 1, -0.6, 0.3, 0, s * 0.7, 0.1, 0, 0, 0.6);
+  else if (k === 5) { if (si === 0) arm(U, si, -0.19, -0.2, -0.27, -0.3, -1, 0.3, 0, 0.5, -0.2, 0, 0, 0.5); else arm(U, si, 0.2, -0.36, 0.0, 0.3, 0, 1, 0.6, 0, 0.1, 0, 0, 0.35); U[49] = 1; }
+  else { arm(U, si, s * 0.078, -0.2, -0.22, s * 1, -0.7, 0.3, 0, s * 0.5, -0.5, 0, 0, 0.3); U[48] = 1; }
 }
 
 function upRest(p, U, c) {
@@ -1288,25 +1508,20 @@ function upRest(p, U, c) {
       else arm(U, si, s * 0.07, 0.02, -0.42, s * 1, -0.5, 0.2, 0, s * 0.2, 0.5, 0.1, 0, 0.5);
     } else if (c.seat > 0.5) {
       const k = p.restKind;
-      if (k === 0) arm(U, si, s * 0.15, -0.28, -0.25, s * 0.6, 0.0, 1, 1, s * 0.6, -0.2, -0.3, 0, 0.35);
+      if (k === 6) restArm(U, si, 6, c);
+      else if (k === 0 || k === 5) arm(U, si, s * 0.15, -0.28, -0.25, s * 0.6, 0.0, 1, 1, s * 0.6, -0.2, -0.3, 0, 0.35);
       else if (k === 1) arm(U, si, s * 0.04, -0.3, -0.24, s * 0.7, -0.2, 0.8, 1, s * 0.9, 0.2, -0.2, 0, 0.4);
-      else if (k === 2) arm(U, si, -s * 0.1, -0.13, -0.17, s * 1, -0.7, 0.2, 0, s * 0.6, 0.1, 0, 0, 0.5);
+      else if (k === 2 || k === 4) arm(U, si, -s * 0.1, -0.13, -0.17, s * 1, -0.7, 0.2, 0, s * 0.6, 0.1, 0, 0, 0.5);
       else arm(U, si, s * 0.17, -0.29, -0.23, s * 0.5, 0.0, 1, 1, s * 0.5, -0.3, -0.3, 0, 0.3);
-    } else {
-      const k = p.restKind;
-      if (k === 0) arm(U, si, s * 0.205, -0.36, 0.0, s * 0.3, 0, 1, 0.6, 0, 0.1, 0, 0, 0.35);
-      else if (k === 1) arm(U, si, s * 0.04, -0.3, -0.19, s * 1, -0.4, 0.6, 0.5, s * 0.8, 0.2, -0.2, 0, 0.35);
-      else if (k === 2) arm(U, si, s * 0.06, -0.36, 0.16, s * 1, 0, -0.4, 0.5, 0, 0.3, 0, 0, 0.45);
-      else arm(U, si, s * 0.17, -0.33, -0.05, s * 1, 0.2, 0.6, 0.6, 0, 0.6, 0, 0, 0.8);
-    }
+    } else restArm(U, si, p.restKind, c);
   }
 }
 
-function upClap(p, U, c, high) {
+function upClap(p, U, c, high, late = 0) {
   const div = p.clapDiv;
-  const q = fract(c.b / div + (div > 1 ? p.clapOff : 0));
+  const q = fract((c.b - late) / div + (div > 1 ? p.clapOff : 0));
   const open = Math.pow(Math.sin(PI * clamp(q * 1.05)), 0.75);
-  const gap = 0.022 + (high ? 0.15 : 0.12) * open * c.amp;
+  const gap = 0.022 + (high ? 0.15 : late ? 0.085 : 0.12) * open * c.amp;
   const hit = pulse(q, 9);
   if (high) {
     const lift = 0.02 * hit;
@@ -1324,31 +1539,42 @@ function upClap(p, U, c, high) {
 function upUp(p, U, c) {
   const sw = Math.sin(PI * c.b * 0.5 + p.ph * 0.3) * c.amp;
   const jh = c.jumpH;
-  const one = p.oneArm;
+  const one = p.oneArm && !c.drop;
   for (let si = 0; si < 2; si++) {
     const s = si ? 1 : -1;
     if (one && s !== p.hand) { arm(U, si, s * 0.2, -0.34, -0.03, s * 0.3, 0, 1, 0.5, 0, 0.1, 0, 0, 0.4); continue; }
-    const wave = 0.13 * sw;
-    arm(U, si, s * 0.36 + wave, 0.6 + 0.04 * jh + 0.03 * Math.cos(PI * c.b), -0.12, s * 1, -0.3, 0.1, 0, -s * 1.1, -0.15, 0.25 * sw, 0, 0.12);
+    const wave = 0.13 * sw * (1 - c.drop);
+    arm(U, si, s * (0.36 - 0.1 * c.drop) + wave, 0.6 + 0.06 * jh + 0.03 * Math.cos(PI * c.b), -0.12, s * 1, -0.3, 0.1, 0, -s * 1.1, -0.15, 0.25 * sw, 0, c.drop ? 0.8 : 0.12);
+    if (one) { U[ua(si) + 11] = 1; U[46 + si] = 1; }
   }
   U[2] = -0.06 * sw; U[5] = -0.05 * sw; U[0] = 0.03; U[9] = 0.12 + 0.05 * jh; U[11] = 0.08 * sw;
-  U[12] = p.sings ? 0.35 : 0.1;
+  U[12] = c.drop ? 0.7 : p.sings ? 0.35 : 0.1;
 }
 
 function upPump(p, U, c) {
-  const q = c.ph;
-  const hit = Math.max(pulse(q, 2.6), smooth(0.84, 1.0, q));
+  const k = snap(c.kt - p.lag * 0.5, 0.06, 0.07, 4.5) * (0.65 + 0.45 * c.amp) * c.ks;
   const d = p.hand, both = p.both;
   for (let si = 0; si < 2; si++) {
     const s = si ? 1 : -1;
     if (s === d || both) {
-      const k = both && s !== d ? Math.max(pulse(fract(q + 0.5), 2.6), smooth(0.84, 1, fract(q + 0.5))) : hit;
-      const a = clamp(k * (0.6 + 0.5 * c.amp));
-      arm(U, si, s * lerp(0.22, 0.12, a), lerp(0.2, 0.66, a), lerp(-0.33, -0.2, a), s * 1, -0.7 + 0.5 * a, 0.1, 0, s * 0.3, 0.2, 0, 0, 0.95, 0, 0.06 * a);
-    } else arm(U, si, s * 0.2, -0.3, -0.1, s * 0.6, -0.2, 1, 0.3, 0, 0.2, 0, 0, 0.8);
+      const a = both && s !== d ? snap(c.kt - p.lag * 0.5 - c.per * 0.5, 0.06, 0.07, 4.5) * c.ks : clamp(k);
+      arm(U, si, s * lerp(0.2, 0.13, a), lerp(0.08, 0.6, a), lerp(-0.3, -0.42, a), s * 0.3, -1, 0.3, 0, s * 0.3, 0.1, 0, 0, 1, 0, 0.05 * a);
+    } else arm(U, si, s * 0.2, -0.3, -0.1, s * 0.6, -0.2, 1, 0.3, 0, 0.2, 0, 0, 0.9);
   }
-  U[3] = -0.08 * hit * c.amp; U[1] = d * -0.08 * hit; U[9] = -0.14 * hit + 0.06; U[6] = -0.06 * hit;
-  U[12] = p.shouts ? 0.75 * hit : 0.1;
+  U[3] = -0.09 * k; U[1] = d * -0.08 * k; U[9] = -0.06 * k; U[6] = -0.05 * k;
+  U[12] = p.shouts ? 0.75 * k : 0.1;
+}
+
+function upHorns(p, U, c) {
+  const k = snap(c.kt - p.lag * 0.5, 0.06, 0.1, 3.5) * c.ks;
+  const d = p.hand;
+  for (let si = 0; si < 2; si++) {
+    const s = si ? 1 : -1;
+    if (s === d) { arm(U, si, s * 0.16, 0.58 + 0.05 * k, -0.27 - 0.06 * k, s * 0.4, -1, 0.3, 0, s * 0.2, -0.1, 0, 0, 1); U[46 + si] = 2; }
+    else if (p.both) { arm(U, si, s * 0.26, 0.2 + 0.04 * k, -0.33, s, -0.6, 0.2, 0, s * 0.3, 0, 0, 0, 1); U[46 + si] = 2; }
+    else arm(U, si, s * 0.2, -0.32, -0.08, s * 0.5, -0.2, 1, 0.3, 0, 0.2, 0, 0, 0.8);
+  }
+  U[3] = -0.1 * k; U[6] = -0.1 - 0.12 * k; U[9] = -0.1 * k + 0.05; U[12] = 0.25 + 0.5 * k;
 }
 
 function upBang(p, U, c) {
@@ -1360,7 +1586,7 @@ function upBang(p, U, c) {
   U[12] = p.shouts ? 0.6 * down : 0.15;
   for (let si = 0; si < 2; si++) {
     const s = si ? 1 : -1;
-    if (p.horns && s === p.hand) arm(U, si, s * 0.16, 0.56, -0.2, s * 1, -0.4, 0.2, 0, s * 0.3, 0.1, 0, 0, 0.75);
+    if (p.horns && s === p.hand) { arm(U, si, s * 0.16, 0.56, -0.24, s * 1, -0.4, 0.2, 0, s * 0.3, 0.1, 0, 0, 1); U[46 + si] = 2; }
     else arm(U, si, s * 0.19, -0.38 + 0.06 * down, -0.12 - 0.06 * down, s * 0.4, 0, 1, 0, 0, 0.2, 0, 0, 0.6);
   }
 }
@@ -1394,7 +1620,7 @@ function upMosh(p, U, c) {
     const s = si ? 1 : -1;
     const q = fract(c.b * 2 + (si ? 0.5 : 0));
     const h = pulse(q, 6);
-    arm(U, si, s * 0.3, -0.02 + 0.16 * h * a, -0.24, s * 1, 0.4, 0.1, 0, s * 0.3, 0.2, 0, 0, 0.95);
+    arm(U, si, s * 0.27, -0.04 + 0.14 * h * a, -0.27, s * 0.7, -0.6, 0.2, 0, s * 0.3, 0.2, 0, 0, 1);
   }
   const hit = pulse(c.ph, 4);
   const tw = Math.sin(PI * c.b) * 0.22 * a;
@@ -1406,6 +1632,7 @@ function upSway(p, U, c) {
   const sw = Math.sin(PI * c.b * 0.5 + p.ph * 0.2);
   for (let si = 0; si < 2; si++) {
     const s = si ? 1 : -1;
+    if (p.restKind >= 3 && c.seat < 0.5) { restArm(U, si, p.restKind, c); continue; }
     arm(U, si, s * 0.2 + 0.03 * sw, -0.34, -0.05 + 0.04 * sw * s, s * 0.3, 0, 1, 0.5, 0, 0.1, 0, 0, 0.35);
   }
   U[2] = -0.04 * sw; U[11] = -0.08 * sw; U[9] = 0.04;
@@ -1416,12 +1643,66 @@ function upRun(p, U, c) {
   for (let si = 0; si < 2; si++) {
     const s = si ? 1 : -1;
     const sw = Math.sin(PI * c.b + (si ? PI : 0));
-    arm(U, si, s * 0.2, -0.17 + 0.13 * sw, -0.12 - 0.16 * sw, s * 0.4, -0.6, 0.6, 0, s * 0.3, 0.1, 0, 0, 0.9);
+    arm(U, si, s * 0.2, -0.17 + 0.13 * sw, -0.12 - 0.16 * sw, s * 0.4, -0.6, 0.6, 0, s * 0.3, 0.1, 0, 0, 1);
   }
   U[3] = -0.08; U[9] = -0.1 * pulse(c.ph, 5);
 }
 
-const UPS = [upRest, (p, U, c) => upClap(p, U, c, false), upUp, upPump, upBang, upWorship, upHug, upMosh, upSway, upRun, (p, U, c) => upClap(p, U, c, true)];
+function upEClap(p, U, c) {
+  upClap(p, U, c, false, 0.18 + 0.08 * p.lateK);
+  U[9] -= 0.05;
+}
+
+function upEWave(p, U, c) {
+  const w = Math.sin(PI * c.b + p.ph);
+  arm(U, 1, 0.27 + 0.07 * w, 0.4 + 0.03 * Math.abs(w), -0.2, 1, -0.7, 0.3, 0, 0.3, -0.2, 0.55 * w, 0, 0.7);
+  arm(U, 0, -0.04, -0.06, -0.16, -1, -0.6, 0.3, 0, -0.8, 0.2, 0, 0, 0.2);
+  U[2] = 0.04 * w; U[11] = -0.08 * w; U[9] = 0.06; U[50] = 1;
+  U[12] = p.sings ? 0.3 + 0.2 * Math.sin(c.t * 8 + p.ph) : 0.15;
+}
+
+function upEBook(p, U, c) {
+  for (let si = 0; si < 2; si++) restArm(U, si, 6, c);
+  const sw = Math.sin(PI * c.b * 0.25 + p.ph);
+  U[2] = 0.03 * sw; U[6] = -0.1; U[9] = -0.16; U[11] = 0.05 * sw;
+  U[12] = 0.22 + 0.2 * (0.5 + 0.5 * Math.sin(c.t * 7.3 + p.ph)) * (0.5 + 0.5 * Math.sin(c.t * 1.9));
+}
+
+function upEEars(p, U, c) {
+  const u = (c.gb - p.pickBeat) / p.earsLen;
+  const k = smooth(0.85, 1.15, u);
+  if (k < 1) {
+    for (let si = 0; si < 2; si++) { const s = si ? 1 : -1; arm(U, si, s * 0.125, 0.29, 0.02, s, -0.7, 0.1, 0, s * 0.2, 0, 0, 0, 0.1); U[42 + si] = 1; U[44 + si] = PI - 0.1; }
+    U[6] = -0.1; U[9] = -0.1 + 0.06 * Math.sin(c.t * 9); U[10] = 0.12 * Math.sin(c.t * 5.5); U[13] = 0.6; U[12] = 0.1;
+  }
+  if (k > 0) {
+    const tmp = _ue; tmp.fill(0);
+    upEClap(p, tmp, c);
+    for (let i = 0; i < UCN; i++) U[i] = lerp(U[i], tmp[i], k);
+  }
+}
+const _ue = new Float32Array(UCN);
+
+function upEShake(p, U, c) {
+  for (let si = 0; si < 2; si++) restArm(U, si, 4, c);
+  const burst = bump(fract(c.t / 3.6 + p.ph), 0, 0.42);
+  U[10] = 0.32 * Math.sin(c.t * 8.5) * burst; U[7] = 0.1 * Math.sin(c.t * 8.5) * burst; U[9] = 0.08; U[6] = 0.04; U[3] = 0.03;
+  U[12] = 0.06 + 0.1 * burst;
+}
+
+function upEArmIn(p, U, c) {
+  const sw = Math.sin(PI * c.gb * 0.5 + p.rowPh);
+  for (let si = 0; si < 2; si++) {
+    const s = si ? 1 : -1;
+    if (p.nb[si]) arm(U, si, s * 0.36, -0.2, -0.03, s * 0.3, -1, 0.6, 0, s * 0.5, 0.1, 0, 0, 0.5);
+    else arm(U, si, s * 0.07, -0.24, -0.22, s, -0.5, 0.5, 0, s * 0.6, 0.1, 0, 0, 0.4);
+  }
+  U[2] = -0.08 * sw; U[5] = -0.05 * sw; U[11] = -0.1 * sw;
+  U[12] = 0.25 + 0.22 * Math.sin(c.t * 6 + p.ph);
+}
+
+const UPS = [upRest, (p, U, c) => upClap(p, U, c, false), upUp, upPump, upBang, upWorship, upHug, upMosh, upSway, upRun, (p, U, c) => upClap(p, U, c, true), upHorns, upEClap, upEWave, upEBook, upEEars, upEShake, upEArmIn];
+const OWN_NOD = new Set([U_BANG, U_WORSHIP, E_SHAKE, E_BOOK, E_EARS, U_HORNS]);
 
 function loStill(p, L, c) {
   L[0] = 0.018 * Math.sin(c.t * 0.35 + p.ph); L[5] = -0.03 * Math.sin(c.t * 0.35 + p.ph);
@@ -1447,6 +1728,17 @@ function loBounce(p, L, c) {
   L[o + 1] = 0.045 * lift; L[o] = (free ? -1 : 1) * 0.025 * lift; L[o + 2] = -0.02 * lift; L[o + 3] = 0.25 * lift;
 }
 
+function jumpCurve(L, c, q, Hm, a) {
+  const u = (q - 0.16) / 0.68;
+  const h = u > 0 && u < 1 ? Hm * 4 * u * (1 - u) : 0;
+  const cmp = bump(fract(q + 0.16), 0.0, 0.32) * 0.1 * a;
+  L[1] = h - cmp;
+  L[3] = -0.1 * cmp / 0.1;
+  const tuck = u > 0 && u < 1 ? Math.sin(PI * u) * 0.06 * a : 0;
+  for (let si = 0; si < 2; si++) { const o = 6 + si * 5; L[o + 1] = Math.max(0, h - tuck * 0.6); L[o + 3] = -0.75 * (u > 0 && u < 1 ? Math.sin(PI * clamp(u * 1.3)) : 0) * a; }
+  return u > 0 && u < 1 ? 4 * u * (1 - u) : 0;
+}
+
 function loJump(p, L, c) {
   const a = c.amp;
   const div = c.jdiv;
@@ -1454,14 +1746,7 @@ function loJump(p, L, c) {
   const T = c.per * div;
   const tf = 0.62 * T;
   const Hm = Math.min(0.26, 9.81 * tf * tf / 8) * a;
-  const u = (q - 0.18) / 0.62;
-  const h = u > 0 && u < 1 ? Hm * 4 * u * (1 - u) : 0;
-  const cmp = (bump(fract(q + 0.2), 0.0, 0.4)) * 0.09 * a;
-  L[1] = h - cmp;
-  L[3] = -0.08 * cmp / 0.09;
-  const tuck = u > 0 && u < 1 ? Math.sin(PI * u) * 0.05 * a : 0;
-  for (let si = 0; si < 2; si++) { const o = 6 + si * 5; L[o + 1] = Math.max(0, h - tuck * 0.5); L[o + 3] = -0.7 * (u > 0 && u < 1 ? Math.sin(PI * clamp(u * 1.3)) : 0) * a; }
-  c.jumpH = h / Math.max(0.01, Hm);
+  c.jumpH = jumpCurve(L, c, q, Hm, a);
 }
 
 function loShuffle(p, L, c) {
@@ -1473,6 +1758,17 @@ function loShuffle(p, L, c) {
     else { const k = (psi - 0.5) / 0.5; L[o + 2] = lerp(0.12, -0.12, k * k * (3 - 2 * k)) * a; L[o + 1] = 0.2 * Math.sin(PI * k) * a; L[o + 3] = -0.4 * Math.sin(PI * k); }
   }
   L[1] = -0.035 * Math.pow(0.5 + 0.5 * Math.cos(TAU * c.ph), 2) * a; L[3] = 0.06;
+}
+
+function loHakken(p, L, c) {
+  const a = c.amp, b2 = c.b * 2;
+  const q8 = fract(b2), act = Math.floor(b2) & 1;
+  const o = 6 + act * 5, so = 6 + (1 - act) * 5;
+  const k = bump(q8, 0.0, 0.62);
+  L[o + 2] = -0.17 * k * a; L[o + 1] = 0.08 * bump(q8, 0.0, 0.5) * a; L[o + 3] = 0.35 * k; L[o] = (act ? 1 : -1) * 0.02 * k;
+  L[so + 3] = -0.15 * k;
+  L[1] = -0.035 * Math.pow(0.5 + 0.5 * Math.cos(TAU * q8), 1.5) * a + 0.01;
+  L[3] = -0.07; L[5] = (act ? 1 : -1) * 0.05 * k * a; L[4] = (act ? -1 : 1) * 0.08 * k;
 }
 
 function shoveAt(p, n) {
@@ -1513,7 +1809,14 @@ function loMosh(p, L, c) {
   c.moshLean = ox;
 }
 
-const LOS = [loStill, loSway, loBounce, loJump, loShuffle, loMosh];
+const LOS = [loStill, loSway, loBounce, loJump, loShuffle, loMosh, loHakken];
+
+const SIGS = [
+  { u: U_PUMP, l: L_BOUNCE, w: [3, 2, 1] }, { u: U_RUN, l: L_HAKKEN, w: [2, 1, 0] }, { u: U_UP, l: L_JUMP, w: [3, 1, 0] },
+  { u: U_BANG, l: L_BOUNCE, w: [2, 1, 0] }, { u: U_UP, l: L_BOUNCE, w: [2, 2, 0.6] }, { u: U_HORNS, l: L_BOUNCE, w: [2, 1, 0] }, { u: U_RUN, l: L_SHUFFLE, w: [2, 0.6, 0] },
+  { u: E_CLAP, l: L_SWAY, w: [0, 0.6, 3] }, { u: E_WAVE, l: L_SWAY, w: [0, 0.3, 2.5] }, { u: E_BOOK, l: L_STILL, w: [0, 0, 2] }, { u: E_EARS, l: L_STILL, w: [0, 0, 1.6] },
+  { u: E_SHAKE, l: L_STILL, w: [0, 0.2, 1.4] }, { u: E_ARMIN, l: L_SWAY, w: [0, 0.3, 2] }, { u: U_CLAP, l: L_SWAY, w: [0.3, 1.5, 0.6] },
+];
 
 const SKINS = ['#f2d3bf', '#eac4ab', '#e2b89c', '#ecc8b0', '#d9a88b', '#e6bba0', '#f0cdb6'];
 const IRIS = ['#5b7fa3', '#6f8ea8', '#7a8a7a', '#6b5a3e', '#4a3526', '#8095a4', '#55704f'];
@@ -1537,6 +1840,13 @@ const CAPS = ['#5a5550', '#4a3b30', '#3a3634', '#6b6258', '#2a2b30'];
 const KERCH = ['#2b3550', '#4a3b30', '#3e4a3a', '#5a4a6a', '#6b5a48', '#2a2b30'];
 const FURS = ['#4a3a2c', '#6b5a48', '#8a8078', '#3a302a', '#d8d0c4'];
 
+const CARDS = ['#b8ab92', '#7a6a58', '#5a5f66', '#3e4a3a', '#8a7d6d', '#6a5048', '#c9c2b4', '#4a3b30'];
+const JACKETS = ['#3a3634', '#4a3b30', '#2b3540', '#55483e', '#3d4552', '#6b5a48', '#2a2b30'];
+const PARKAS = ['#3d4a3a', '#2b3550', '#1b1c20', '#5a5040', '#4a3b2c', '#2a3a3e', '#6a6250'];
+const FLEECES = ['#2b3550', '#4a4e56', '#2f4a4a', '#5a3a40', '#3e4636', '#6a6a70', '#7a6a58'];
+const LEATHERS = ['#141414', '#2a1c14', '#3a2618', '#1c1a1a', '#4a3020'];
+const HOODIES = ['#5a5f66', '#1b1c20', '#2b3550', '#8a6d3a', '#3e4a3a', '#7a7570', '#4b3f5c', '#a8a49c', '#2a4a4a'];
+const TEES = ['#ece8e0', '#151515', '#2aa0d8', '#f0c020', '#7a3cc8', '#30b060', '#f07820', '#ff5fa8', '#1fd6c0', '#e8e4dc'];
 const HAIRS = ['short', 'bald', 'bob', 'long', 'bun', 'perm'];
 const HATS = ['beanie', 'cap', 'beret', 'kerchief'];
 
@@ -1559,7 +1869,12 @@ function makeLook(r, o = {}) {
     head: kid ? 1.0 - (12 - age) * 0.012 : teen ? 0.97 : (male ? 1.0 : 0.96) + (r() - 0.5) * 0.04,
     leg: kid ? 0.97 : 1, arm: 1, limb: (male ? 1.02 : 0.96) * (0.97 + 0.06 * girth), neck: male ? 1.04 : 0.94, hand: male ? 0.96 : 0.88,
   };
-  L.variant = o.variant ?? (kid || teen ? (!male && r() < 0.12 ? 2 : 0) : male ? (r() < (old ? 0.4 : 0.3) ? 1 : 0) : wpick(r, old ? [[1, 45], [2, 30], [0, 25]] : [[0, 55], [1, 30], [2, 15]]));
+  const young = age < 35;
+  L.outfit = o.outfit ?? wpick(r, old ? [['wool', 34], ['puffer', 17], ['cardigan', 15], ['jacket', 16], ['parka', 10], ['fleece', 8]]
+    : ageCls === 'mid' ? [['wool', 20], ['puffer', 19], ['parka', 15], ['jacket', 15], ['fleece', 12], ['leather', 11], ['cardigan', 5], ['hoodie', 3]]
+    : kid ? [['puffer', 30], ['hoodie', 32], ['parka', 20], ['fleece', 18]] : [['hoodie', 30], ['puffer', 20], ['parka', 15], ['leather', 11], ['fleece', 14], ['jacket', 10]]);
+  const longOk = !young;
+  L.variant = o.variant ?? (L.outfit === 'wool' && longOk ? (!male && r() < 0.25 ? 2 : 1) : L.outfit === 'parka' && longOk && r() < 0.5 ? 1 : !male && (old || ageCls === 'mid') && (L.outfit === 'cardigan' || L.outfit === 'jacket' || L.outfit === 'puffer') && r() < 0.4 ? 2 : !male && young && r() < 0.1 ? 2 : 0);
   const hairCol = o.hairCol ?? (old ? (!male && r() < 0.3 ? pick(r, HAIR_DYED) : pick(r, HAIR_OLD)) : ageCls === 'mid' ? (r() < 0.3 ? pick(r, ['#7a746a', '#8a847b', '#6a645c']) : pick(r, HAIR_MID)) : pick(r, HAIR_YOUNG));
   L.hairCol = hairCol;
   L.hair = o.hair ?? (male ? (old ? wpick(r, [['bald', 50], ['short', 50]]) : ageCls === 'mid' ? wpick(r, [['short', 70], ['bald', 30]]) : 'short')
@@ -1582,38 +1897,51 @@ function makeLook(r, o = {}) {
   L.skin = o.skin ?? (kid ? '#f3d8c6' : male && old && r() < 0.3 ? '#dba58a' : pick(r, SKINS));
   L.iris = pick(r, IRIS);
   L.face = o.face ?? (kid || teen ? 6 : old ? (male ? wpick(r, [[0, 40], [1, 35], [7, 25]]) : wpick(r, [[2, 55], [3, 45]])) : male ? 4 : 5);
-  const puffy = L.variant !== 1 && r() < (teen || kid ? 0.85 : 0.6);
-  L.coatPat = o.coatPat ?? (L.variant === 1 ? PT.wool : puffy ? PT.quilt : PT.plain);
-  L.coat = o.coat ?? (L.variant === 1 ? pick(r, COATS_OLD) : puffy ? (teen || kid ? pick(r, PUFF_YOUNG) : pick(r, PUFFERS)) : pick(r, COATS_OLD));
+  const OUT = {
+    wool: [COATS_OLD, PT.wool, 0.93], puffer: [teen || kid ? PUFF_YOUNG : PUFFERS, PT.quilt, 0.5], cardigan: [CARDS, PT.knit, 0.95], jacket: [JACKETS, PT.wool, 0.9],
+    parka: [PARKAS, PT.plain, 0.62], fleece: [FLEECES, PT.fleece, 0.97], leather: [LEATHERS, PT.leather, 0.36], hoodie: [HOODIES, PT.cotton, 0.92],
+  }[L.outfit];
+  L.coatPat = o.coatPat ?? OUT[1];
+  L.coatRough = OUT[2];
+  L.coat = o.coat ?? pick(r, OUT[0]);
+  L.quilt = 0.055 + r() * 0.05;
+  L.hood = o.hood ?? ((L.outfit === 'hoodie' || (L.outfit === 'parka' && r() < 0.7)) && !L.hat);
   const fur = !male && old && L.variant === 1 && r() < 0.35;
-  L.trim = o.trim ?? (fur ? pick(r, FURS) : new THREE.Color(L.coat).multiplyScalar(0.8).getStyle());
-  L.trimPat = fur ? PT.fur : L.coatPat === PT.quilt ? PT.plain : L.coatPat;
+  L.trim = o.trim ?? (fur ? pick(r, FURS) : L.outfit === 'parka' && r() < 0.4 ? pick(r, FURS) : new THREE.Color(L.coat).multiplyScalar(L.outfit === 'cardigan' || L.outfit === 'hoodie' ? 0.92 : 0.8).getStyle());
+  L.trimPat = fur || (L.outfit === 'parka' && L.trim !== undefined && FURS.includes(L.trim)) ? PT.fur : L.coatPat === PT.quilt ? PT.plain : L.coatPat;
   L.pants = o.pants ?? (L.variant === 2 ? pick(r, SKIRTS) : teen || (ageCls !== 'old' && r() < 0.45) ? pick(r, JEANS) : pick(r, PANTS));
   L.pantsPat = male && old && r() < 0.3 ? PT.cord : PT.plain;
   L.legs = o.legs ?? (L.variant === 2 ? pick(r, TIGHTS) : L.variant === 1 && !male ? (r() < 0.5 ? pick(r, TIGHTS) : L.pants) : L.pants);
   L.shoe = o.shoe ?? (teen || kid ? pick(r, SNEAK) : pick(r, SHOES));
   L.sole = teen || kid ? '#e8e6e0' : '#1a1918';
-  L.gloves = r() < 0.06 ? pick(r, ['#1b1c20', '#3a2c22', '#4a4e56']) : null;
+  L.gloves = r() < 0.05 && old ? pick(r, ['#1b1c20', '#3a2c22', '#4a4e56']) : null;
+  L.book = pick(r, ['#2a1c18', '#1c2238', '#3a1c22', '#1a2a1e']);
   return L;
 }
 
 const PRESETS = {
-  redHatLady: { ageCls: 'old', age: 72, male: false, h: 1.58, variant: 1, coat: '#1c2742', coatPat: PT.wool, trim: '#18213a', hair: 'bob', hairCol: '#5a463a', hat: 'beanie', hatCol: '#b0252b', glasses: false, scarf: false, legs: '#1d1c20', pants: '#1d1c20', shoe: '#141414', face: 3, skin: '#ecc8b0' },
-  navyJacketMan: { ageCls: 'old', age: 71, male: true, h: 1.76, girth: 1.12, belly: 1.25, variant: 0, coat: '#1b263d', coatPat: PT.quilt, trim: '#18213a', hair: 'short', hairCol: '#b4afa6', hat: null, glasses: false, scarf: false, pants: '#2a2b30', legs: '#2a2b30', shoe: '#161514', face: 0, skin: '#e2b89c' },
-  beigeJacketLady: { ageCls: 'old', age: 77, male: false, h: 1.56, variant: 0, coat: '#d8ccb2', coatPat: PT.quilt, trim: '#cbbd9f', hair: 'perm', hairCol: '#eeeae2', hat: null, glasses: true, scarf: false, pants: '#2e2d31', legs: '#2e2d31', shoe: '#1d1a18', face: 2, skin: '#f0cdb6' },
+  redHatLady: { ageCls: 'old', age: 72, male: false, h: 1.58, variant: 1, outfit: 'wool', hood: false, coat: '#1c2742', coatPat: PT.wool, trim: '#18213a', hair: 'bob', hairCol: '#5a463a', hat: 'beanie', hatCol: '#b0252b', glasses: false, scarf: false, legs: '#1d1c20', pants: '#1d1c20', shoe: '#141414', face: 3, skin: '#ecc8b0' },
+  navyJacketMan: { ageCls: 'old', age: 71, male: true, h: 1.76, girth: 1.12, belly: 1.25, variant: 0, outfit: 'puffer', hood: false, coat: '#1b263d', coatPat: PT.quilt, trim: '#18213a', hair: 'short', hairCol: '#b4afa6', hat: null, glasses: false, scarf: false, pants: '#2a2b30', legs: '#2a2b30', shoe: '#161514', face: 0, skin: '#e2b89c' },
+  beigeJacketLady: { ageCls: 'old', age: 77, male: false, h: 1.56, variant: 0, outfit: 'puffer', hood: false, coat: '#d8ccb2', coatPat: PT.quilt, trim: '#cbbd9f', hair: 'perm', hairCol: '#eeeae2', hat: null, glasses: true, scarf: false, pants: '#2e2d31', legs: '#2e2d31', shoe: '#1d1a18', face: 2, skin: '#f0cdb6' },
 };
 
-function applyLook(pool, row, L) {
+function applyLook(pool, row, L, tee = null) {
   const S = (slot, c, pat, rough = 0.85, metal = 0, ex = 0, ex2 = 0) => pool.setSlot(row, slot, new THREE.Color(c), pat, rough, metal, ex, ex2);
   S(S_SKIN, L.skin, PT.skin, 0.55, 0, L.face);
   S(S_HAIR, L.hairCol, L.hair === 'perm' ? PT.curly : PT.hair, 0.55);
-  S(S_COAT, L.coat, L.coatPat, L.coatPat === PT.quilt ? 0.48 : 0.92);
-  S(S_TRIM, L.trim, L.trimPat, 0.9);
+  if (tee) {
+    S(S_COAT, tee, PT.cotton, 0.9); S(S_TRIM, tee, PT.cotton, 0.9); S(S_EXTRA, L.skin, PT.skin, 0.6);
+  } else {
+    S(S_COAT, L.coat, L.coatPat, L.coatRough, 0, L.coatPat === PT.quilt ? L.quilt : 0);
+    S(S_TRIM, L.trim, L.trimPat, 0.9);
+    S(S_EXTRA, L.coat, L.coatPat, L.coatRough, 0, L.coatPat === PT.quilt ? L.quilt : 0);
+  }
   S(S_PANTS, L.pants, L.pantsPat, 0.88);
   S(S_LEGS, L.legs, L.variant === 2 ? PT.plain : L.pantsPat, L.variant === 2 ? 0.6 : 0.88);
   S(S_SHOE, L.shoe, PT.leather, L.shoe === '#d8d6d0' || L.shoe === '#c9c4ba' ? 0.7 : 0.38);
   S(S_SOLE, L.sole, PT.plain, 0.8);
-  S(S_INNER, L.trim, PT.plain, 0.9);
+  S(S_INNER, L.book || '#2a1c18', PT.leather, 0.5);
+  S(S_LIP, '#f2efe6', PT.cotton, 0.9);
   S(S_HAT, L.hatCol, L.hat === 'beanie' ? PT.knit : L.hat === 'kerchief' ? PT.print : L.hat === 'cap' ? PT.wool : PT.wool, 0.92);
   S(S_SCARF, L.scarfCol, PT.knit, 0.95);
   S(S_GLASS, L.age > 50 ? '#3a3330' : '#1a1a1c', PT.plain, 0.3, 0.3);
@@ -1665,18 +1993,20 @@ export class Congregation {
       const p = this.makePerson(r, i, ch.pl, look, rig, pit);
       p.slot = ch.slot;
       p.preset = ch.preset || null;
+      p.mask0 = p.baseMask = (look.glasses ? 1 << PR.glasses : 0) | (look.scarf ? 1 << PR.scarf : 0) | (look.hood ? 1 << PR.hood : 0) | (look.hat ? 1 << PR[look.hat] : 0);
       this.people.push(p);
     });
     this.findNeighbors();
+    this.assignSignatures(r);
     this.meshes = [];
     const byKey = new Map();
     const addTo = (key, i) => { if (!byKey.has(key)) byKey.set(key, []); byKey.get(key).push(i); };
     this.people.forEach((p, i) => {
       addTo('body' + p.look.variant, i);
       if (p.look.hair) addTo('hair_' + p.look.hair, i);
-      if (p.look.hat) addTo('hat_' + p.look.hat, i);
-      if (p.look.glasses) addTo('glasses', i);
-      if (p.look.scarf) addTo('scarf', i);
+      if (p.look.hat) addTo('hats', i);
+      if (p.baseMask & 7) addTo('acc', i);
+      if (p.lazy > 0.5 || p.restKind >= 5) addTo('props', i);
     });
     const geoCache = {};
     const geoFor = (key) => {
@@ -1684,9 +2014,9 @@ export class Congregation {
       let G;
       if (key.startsWith('body')) G = bodyGeo(+key.slice(4));
       else if (key.startsWith('hair_')) G = hairGeo(key.slice(5));
-      else if (key.startsWith('hat_')) G = hatGeo(key.slice(4));
-      else if (key === 'glasses') G = glassesGeo();
-      else G = scarfGeo();
+      else if (key === 'hats') G = hatsGeo();
+      else if (key === 'props') G = propsGeo();
+      else G = accGeo();
       return (geoCache[key] = G.build());
     };
     this.tris = 0;
@@ -1719,6 +2049,37 @@ export class Congregation {
     }
     this.wU = new Float32Array(NU); this.wL = new Float32Array(NL); this.snap = new Float32Array(NU + NL); this.ver = 0;
     this.lastBeat = 0; this.per = 0.5; this.frame = 0; this.cpu = 0;
+    this.kickT = -99; this.kickS = 1; this.lastT = 0; this.dropBeat = -99; this.teeOn = false;
+  }
+
+  kick(strength = 1) { this.kickT = this.lastT; this.kickS = clamp(0.55 + 0.45 * strength, 0.4, 1); }
+
+  drop(beat) { this.dropBeat = beat ?? Math.ceil(this.lastBeat - 0.15); }
+
+  tshirts(on = true) {
+    if (on === this.teeOn) return;
+    this.teeOn = on;
+    for (const p of this.people) {
+      if (!p.young) continue;
+      applyLook(this.pool, p.i, p.look, on ? p.tee : null);
+      p.baseMask = on ? p.baseMask & ~((1 << PR.scarf) | (1 << PR.hood) | (1 << PR.beanie) | (1 << PR.cap)) : p.mask0;
+    }
+    this.pool.palTex.needsUpdate = true;
+  }
+
+  assignSignatures(r) {
+    const P = this.people;
+    const order = P.slice().sort((a, b) => hash(a.seed * 0.37) - hash(b.seed * 0.37));
+    for (const p of order) {
+      const cls = p.lazy > 0.55 ? 2 : p.look.age < 40 ? 0 : 1;
+      const used = new Set();
+      for (const q of P) if (q !== p && q.sig && Math.hypot(q.x - p.x, q.z - p.z) < 1.05) { used.add(q.sig[0]); used.add(q.sig[1]); }
+      const cand = [];
+      SIGS.forEach((g, k) => { if (g.w[cls] > 0) cand.push([k, g.w[cls] * (used.has(k) ? 0.04 : 1)]); });
+      const a = wpick(r, cand);
+      const b = wpick(r, cand.filter((c) => c[0] !== a).map(([k, w]) => [k, w]));
+      p.sig = [a, b ?? a];
+    }
   }
 
   makePerson(r, i, pl, look, rig, pit) {
@@ -1727,18 +2088,20 @@ export class Congregation {
     for (let k = 0; k < NU; k++) aff[k] = 0.5 + r();
     for (let k = 0; k < NL; k++) affL[k] = 0.5 + r();
     const oldM = [1, 2.2, 0.7, 0.5, 0.25, 1.6, 1.5, 0.15, 1.8, 0.15, 0.6], youngM = [1, 0.7, 1.3, 1.4, 1.3, 0.9, 0.9, 1.5, 0.6, 1.4, 1.3];
-    const oldL = [1, 1.6, 1, 0.25, 0.15, 0.2], youngL = [1, 0.6, 1, 1.4, 1.5, 1.4];
-    for (let k = 0; k < NU; k++) aff[k] *= lerp(youngM[k], oldM[k], lazy);
+    const oldL = [1, 1.6, 1, 0.25, 0.15, 0.2, 0.1], youngL = [1, 0.6, 1, 1.4, 1.5, 1.4, 1.4];
+    for (let k = 0; k < NU; k++) aff[k] *= k < youngM.length ? lerp(youngM[k], oldM[k], lazy) : k === U_HORNS ? 1.3 * (1 - lazy) : lazy > 0.55 ? 1.6 : 0;
     for (let k = 0; k < NL; k++) affL[k] *= lerp(youngL[k], oldL[k], lazy);
     return {
       i, rig, look, pit, x: pl.x, z: pl.z, yaw: pl.yaw || 0, seat: pl.kind === 'seat', seed: 1 + Math.floor(r() * 1e6),
       lazy, aff, affL, ph: r() * TAU, lag: 0.004 + r() * 0.05 + lazy * 0.03, amp: (0.75 + r() * 0.45) * (1 - 0.35 * lazy),
       hand: r() < 0.86 ? 1 : -1, both: r() < 0.3, oneArm: r() < 0.25, horns: r() < 0.5, sings: r() < 0.6, shouts: r() < 0.55 + 0.3 * (1 - lazy),
       clapDiv: lazy > 0.6 && r() < 0.5 ? 2 : 1, clapOff: r() < 0.5 ? 0 : 0.5, slow: r() < 0.4, moshJump: r() < 0.5, halfJump: r() < 0.35 + lazy * 0.4,
-      restKind: Math.floor(r() * 4), feetUp: r() < 0.35, noKneel: lazy > 0.8 && r() < 0.35, stayDown: lazy > 0.5 && r() < 0.08, sleepy: r() < 0.3 + 0.2 * lazy, sleepPer: 6 + r() * 9,
+      restKind: wpick(r, look.age > 58 ? (look.male ? [[2, 25], [3, 25], [4, 18], [1, 15], [6, 10], [0, 7]] : [[1, 25], [5, 25], [6, 18], [0, 14], [4, 10], [3, 8]]) : look.age > 35 ? [[3, 30], [0, 25], [4, 20], [1, 15], [look.male ? 3 : 5, 10]] : [[3, 35], [0, 30], [4, 25], [1, 10]]), feetUp: r() < 0.35, noKneel: lazy > 0.8 && r() < 0.35, stayDown: lazy > 0.5 && r() < 0.08, sleepy: r() < 0.3 + 0.2 * lazy, sleepPer: 6 + r() * 9,
       react: 0.15 + r() * 0.6 + lazy * 0.8, dur: 0.7 + lazy * 0.9 + r() * 0.3, delay: 0.1 + r() * 0.5 + lazy * 0.9,
       post: 0, postWant: 0, postTimer: -1, sS: pit ? 1 : 0, kS: 0,
       uA: U_REST, uB: U_REST, uK: 1, lA: L_STILL, lB: L_STILL, lK: 1, pickAt: 4 + r() * 8, pickLen: r() < 0.5 ? 8 : 16, ver: -1,
+      young: look.age < 35, fit: clamp(1.15 - Math.abs(look.age - 22) / 40, 0.6, 1.1), lateK: r(), earsLen: 8 + Math.floor(r() * 3) * 4, pickBeat: 0, tee: pick(r, TEES),
+      mask0: 0, baseMask: 0,
       sleepW: 0, peaceW: 0, ly: 0, lp: 0, lyT: 0, lpT: 0, lookAt: r() * 4, blinkAt: r() * 4, rowPh: 0, nb: [0, 0], vis: true, rnd: rng(1 + i * 7717),
     };
   }
@@ -1766,7 +2129,10 @@ export class Congregation {
     U[U_UP] = m.raise + 0.45 * m.jump; U[U_PUMP] = m.pump + 0.35 * m.jump + 0.3 * m.mosh + 0.15 * m.headbang;
     U[U_BANG] = m.headbang; U[U_WORSHIP] = m.worship; U[U_HUG] = m.hug + 0.15 * m.sway; U[U_MOSH] = m.mosh; U[U_SWAY] = 0.7 * m.sway; U[U_RUN] = m.shuffle;
     L[L_STILL] = Math.max(0, 1 - dance); L[L_SWAY] = m.sway + m.worship + 0.8 * m.hug + 0.25 * m.clap; L[L_BOUNCE] = 0.6 * m.clap + 0.6 * m.raise + m.pump + m.headbang + 0.1 * dance;
-    L[L_JUMP] = m.jump; L[L_SHUFFLE] = m.shuffle; L[L_MOSH] = m.mosh;
+    L[L_JUMP] = m.jump; L[L_SHUFFLE] = m.shuffle; L[L_MOSH] = m.mosh; L[L_HAKKEN] = 0.5 * m.shuffle;
+    U[U_HORNS] = 0.4 * m.headbang;
+    U[E_CLAP] = m.clap * 0.9; U[E_WAVE] = m.raise * 0.5 + m.worship * 0.2; U[E_BOOK] = m.worship * 0.5 + m.sway * 0.25 + m.sing * 0.4;
+    U[E_EARS] = 0; U[E_SHAKE] = 0.15 * Math.max(m.jump, m.mosh, m.headbang); U[E_ARMIN] = m.hug * 0.8 + m.sway * 0.3;
     let d = 0;
     for (let k = 0; k < NU; k++) d += Math.abs(U[k] - this.snap[k]);
     for (let k = 0; k < NL; k++) d += Math.abs(L[k] - this.snap[NU + k]);
@@ -1775,7 +2141,20 @@ export class Congregation {
   }
 
   pick(p, standing) {
-    const U = this.wU, L = this.wL, r = p.rnd;
+    const U = this.wU, L = this.wL, r = p.rnd, m = this.mood;
+    const rave = Math.max(m.jump, m.mosh, m.headbang, m.pump, m.shuffle);
+    p.pickBeat = this.lastBeat;
+    if (rave > 0.35 && (standing || p.lazy > 0.55) && p.kS < 0.5) {
+      const g = SIGS[r() < 0.72 ? p.sig[0] : p.sig[1]];
+      let u = g.u, l = standing ? g.l : L_STILL;
+      if (l === L_JUMP && m.jump < 0.2) l = L_BOUNCE;
+      if ((l === L_HAKKEN || l === L_SHUFFLE) && rave < 0.55) l = L_BOUNCE;
+      if (u === U_RUN && l === L_BOUNCE) u = U_PUMP;
+      if (p.pit && m.mosh > 0.4 && p.lazy < 0.5 && r() < 0.3 * m.mosh) { if (r() < 0.5) u = U_MOSH; l = L_MOSH; }
+      if (!standing && (u === U_RUN || u === U_MOSH)) u = U_PUMP;
+      if (u === E_ARMIN && !(p.nb[0] || p.nb[1])) u = E_CLAP;
+      return [u, l];
+    }
     let s = 0;
     const w = _wu;
     for (let k = 0; k < NU; k++) {
@@ -1783,6 +2162,8 @@ export class Congregation {
       if (k === U_MOSH && !p.pit) v = 0;
       if (k === U_RUN && (!standing || !p.pit && p.seat && this.mood.stand < 0.5)) v = 0;
       if (k === U_REST) v += 0.12 * p.lazy * (1 - this.energy) * (U[k] < 0.95 ? 1 : 0);
+      if ((k === U_HUG || k === E_ARMIN) && !(p.nb[0] || p.nb[1])) v = 0;
+      if (k === E_EARS) v = 0;
       w[k] = v; s += v;
     }
     let x = r() * s, u = U_REST;
@@ -1796,7 +2177,7 @@ export class Congregation {
         if (k === L_SHUFFLE && p.seat) v *= 0.4;
         if (u === U_RUN) v = k === L_SHUFFLE ? 1 : 0;
         else if (u === U_MOSH) v = k === L_MOSH ? 1 : k === L_JUMP ? 0.5 : 0;
-        else if (u === U_WORSHIP || u === U_HUG) v = k === L_SWAY ? 1 : k === L_STILL ? 0.3 : 0;
+        else if (u === U_WORSHIP || u === U_HUG || u >= E_CLAP) v = k === L_SWAY ? 1 : k === L_STILL ? 0.4 : 0;
         else if (k === L_JUMP && !(u === U_UP || u === U_PUMP || u === U_CLAPHI || u === U_BANG)) v *= 0.2;
         if (u !== U_REST && k === L_STILL) v *= 0.3;
         _wl[k] = v; sl += v;
@@ -1834,6 +2215,7 @@ export class Congregation {
       this.pose(p, dt, t, beat, energy, dance);
     }
     this.pool.tex.needsUpdate = true;
+    this.lastT = t;
     this.cpu = damp(this.cpu, performance.now() - t0, 3, Math.max(dt, 0.016));
   }
 
@@ -1893,6 +2275,11 @@ export class Congregation {
     ctx.t = t; ctx.b = b; ctx.ph = fract(b); ctx.per = per; ctx.gb = beat; ctx.e = e;
     ctx.amp = p.amp * (0.45 + 0.55 * e); ctx.seat = 1 - p.sS; ctx.kneel = p.kS; ctx.jumpH = 0; ctx.moshLean = 0;
     ctx.jdiv = per < 0.4 || p.halfJump ? 2 : 1;
+    const kt = t - this.kickT;
+    if (kt < Math.max(1.2, per * 2.2)) { ctx.kt = kt; ctx.ks = this.kickS; } else { ctx.kt = fract(b) * per; ctx.ks = 1; }
+    const dbt = beat - this.dropBeat;
+    const dropW = p.young && standing && dbt > -0.05 && dbt < 4.2 ? smooth(-0.05, 0.06, dbt) * (1 - smooth(3.7, 4.2, dbt)) : 0;
+    ctx.drop = 0;
     const wS = p.sS * (1 - p.kS), wSeat = (1 - p.sS) * (1 - p.kS);
     LF.fill(0);
     if (wS > 0.01) {
@@ -1903,8 +2290,21 @@ export class Congregation {
     UA.fill(0); UPS[p.uA](p, UA, ctx);
     if (p.uK < 1) { UB.fill(0); UPS[p.uB](p, UB, ctx); const k = p.uK * p.uK * (3 - 2 * p.uK); for (let i = 0; i < UCN; i++) UF[i] = lerp(UB[i], UA[i], k); }
     else UF.set(UA);
-    if (p.uA !== U_REST && p.uB !== U_REST || p.uK >= 1 && p.uA !== U_REST) {
-      if (ctx.seat > 0.5) { const dip = pulse(ctx.ph, 5) * ctx.amp; UF[3] += -0.05 * dip; UF[9] += -0.08 * dip; }
+    if (dropW > 0.001) {
+      const div = per < 0.5 ? 2 : 1;
+      const q = fract(Math.max(0, dbt) / div);
+      _dl.fill(0);
+      const jh = jumpCurve(_dl, ctx, q, 0.34 * p.fit, 1);
+      for (let i = 0; i < LCN; i++) LF[i] = lerp(LF[i], _dl[i], dropW);
+      ctx.drop = 1; ctx.jumpH = jh;
+      _du.fill(0); upUp(p, _du, ctx);
+      for (let i = 0; i < UCN; i++) UF[i] = lerp(UF[i], _du[i], dropW);
+    }
+    const dancing = p.uA !== U_REST || (p.uK < 1 && p.uB !== U_REST);
+    if (dancing && !OWN_NOD.has(p.uA) && dance > 0.1) {
+      const n = snap(fract(b) * per, 0.05, 0.03, 7) * (0.6 + 0.6 * ctx.amp);
+      UF[6] -= 0.1 * n; UF[9] -= 0.09 * n;
+      if (ctx.seat > 0.5) UF[3] -= 0.04 * n;
     }
     const sw = p.sleepW, pw = p.peaceW;
     if (sw > 0.01) {
@@ -1967,6 +2367,7 @@ export class Congregation {
       r.eul[fo * 3 + 1] = UF[o + 7];
       r.set(ha, UF[o + 9], UF[o + 10], -s * UF[o + 8]);
       r.set(fi, 0, 0, -s * UF[o + 11] * 1.9);
+      r.hand[si] = clamp(UF[o + 11]); r.hand[2 + si] = clamp(UF[46 + si], 0, 2);
       r.set(cl, 0, UF[o + 12], s * UF[o + 13]);
       r.hw[si] = clamp(UF[42 + si]); r.hwP[si] = UF[44 + si];
       const fx = s * lerp(lerp(0.11, p.pit ? 0.1 : 0.09, sS), 0.1, kS) * H;
@@ -1989,11 +2390,12 @@ export class Congregation {
     r.fx[0] = Math.max(clamp(UF[13]), bt < 0.13 && bt > 0 ? 1 : 0);
     r.fx[1] = clamp(UF[12]);
     r.fx[2] = clamp(-p.ly * 0.7, -1, 1); r.fx[3] = clamp(p.lp * 0.8 + 0.1, -1, 1);
+    r.misc[0] = p.baseMask | (UF[48] > 0.5 ? 1 << PR.book : 0) | (UF[49] > 0.5 && ctx.seat < 0.5 ? 1 << PR.bag : 0) | (UF[50] > 0.5 ? 1 << PR.hanky : 0);
     r.fk(true);
   }
 }
 const _ctx = {};
-const _wu = new Float32Array(NU), _wl = new Float32Array(NL);
+const _wu = new Float32Array(NU), _wl = new Float32Array(NL), _dl = new Float32Array(LCN), _du = new Float32Array(UCN);
 
 function robeSkinSide(side) {
   const th = side < 0 ? THL : THR, sh = side < 0 ? SHL : SHR;
@@ -2035,7 +2437,7 @@ function chasubleSkin(x, y, z) {
   const front = z < 0;
   const ar = x < 0 ? ARL : ARR, fo = x < 0 ? FOL : FOR, cl = x < 0 ? CLL : CLR;
   const up = front ? CFU : CBU, lo = front ? CFL : CBL;
-  const side = smooth(0.16, 0.3, ax) * 0.62;
+  const side = smooth(0.18, 0.32, ax) * 0.3;
   if (y > 1.33) return side > 0.5 ? [cl, CH, 0.6] : [CH, up, smooth(1.42, 1.34, y) * 0.3];
   const armB = y > 1.12 ? ar : fo;
   const panel = y > 1.02 ? up : lo;
@@ -2062,7 +2464,9 @@ function priestGeo() {
   pelvisPart(G, { top: 1.0, slot: S_COAT });
   torsoPart(G, { y0: 0.95, pad: 0.008, slot: S_COAT });
   robePart(G, { hem: 0.03, top: 0.99, rxB: 0.27, rzB: 0.2, rxT: 0.172, rzT: 0.118, slot: S_COAT, fold: 0.03 });
+  G.prop = PR.vest;
   chasubleGeo(G, 0.6);
+  G.prop = -1;
   collarPart(G, { kind: 'stand', slot: S_INNER });
   for (const s of [-1, 1]) {
     const st = loft([
@@ -2072,12 +2476,8 @@ function priestGeo() {
     ], 8, 'y', true, true);
     G.add(st[0], st[1], (x, y) => [s < 0 ? THL : THR, P, smooth(0.66, 0.44, y)], S_SCARF);
   }
-  const hair = hairGeo('bald'), gl = glassesGeo();
-  for (const H of [hair, gl]) {
-    const base = G.count;
-    G.p.push(...H.p); G.n.push(...H.n); G.bi.push(...H.bi); G.bw.push(...H.bw); G.sl.push(...H.sl); G.fc.push(...H.fc); G.ao.push(...H.ao);
-    for (const i of H.idx) G.idx.push(base + i);
-  }
+  G.append(hairGeo('bald'), -1);
+  G.append(glassesGeo(), -1);
   return G;
 }
 
@@ -2107,10 +2507,7 @@ function serverGeo() {
   const [pos, idx] = loft(rings, 22, 'y', false, false);
   G.add(pos, idx, (x, y, z) => (y < 0.97 ? skirtSkin(x, y, z) : torsoSkin(x, y, z)), S_HAT, { ao: (x, y) => 0.92 + 0.08 * smooth(0.66, 0.72, y) });
   collarPart(G, { kind: 'stand', slot: S_COAT });
-  const hair = hairGeo('short');
-  const base = G.count;
-  G.p.push(...hair.p); G.n.push(...hair.n); G.bi.push(...hair.bi); G.bw.push(...hair.bw); G.sl.push(...hair.sl); G.fc.push(...hair.fc); G.ao.push(...hair.ao);
-  for (const i of hair.idx) G.idx.push(base + i);
+  G.append(hairGeo('short'), -1);
   return G;
 }
 
@@ -2188,6 +2585,32 @@ function headphoneProps() {
     cups.push(c);
   }
   return { g, cups };
+}
+
+function thrownChasuble() {
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 384;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#efe6d2'; c.fillRect(0, 0, 256, 384);
+  c.fillStyle = 'rgba(200,190,160,0.25)';
+  for (let y = 0; y < 384; y += 12) for (let x = (y / 12) % 2 ? 6 : 0; x < 256; x += 12) c.fillRect(x, y, 4, 4);
+  const gold = c.createLinearGradient(0, 0, 256, 0);
+  gold.addColorStop(0, '#9a7428'); gold.addColorStop(0.5, '#e2bf62'); gold.addColorStop(1, '#9a7428');
+  c.fillStyle = gold;
+  c.fillRect(106, 0, 44, 384); c.fillRect(30, 96, 196, 36);
+  c.strokeStyle = '#b8902f'; c.lineWidth = 8; c.strokeRect(4, 4, 248, 376);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const g = new THREE.PlaneGeometry(0.86, 1.2, 10, 14);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i);
+    p.setZ(i, 0.05 * Math.sin(x * 9 + y * 3) + 0.04 * Math.sin(y * 7) + 0.08 * Math.exp(-((x * x + y * y) / 0.08)));
+  }
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.05, side: THREE.DoubleSide }));
+  m.visible = false;
+  return m;
 }
 
 const PN = 78;
@@ -2375,60 +2798,55 @@ function bdToprock(p, c, lb) {
   p[13] = -0.15 * dip; p[16] = 0.06 - 0.06 * dip; p[17] = -s * 0.25 * out;
 }
 
-const SIX = [[[-0.15, -0.55], [-0.42, 0.14]], [[-0.08, -0.5], [0.06, 0.45]], [[0.46, 0.1], [0.06, 0.45]], [[0.46, 0.1], [0.12, -0.56]], [[-0.05, 0.45], [0.12, -0.52]], [[-0.05, 0.45], [-0.46, 0.1]]];
-
-function bdSix(p, c, lb) {
-  poseBase(p, c);
-  p[67] = 0.85;
-  const H = c.H;
-  const u = Math.max(0, (lb - 5) / 3);
-  const psi = -TAU * u;
-  const steps = u * 6, k = Math.floor(steps), f = steps - k;
-  const A = SIX[k % 6], B = SIX[(k + 1) % 6];
-  const e = f * f * (3 - 2 * f);
-  const hx = -0.08, hz = -0.12;
-  const cs = Math.cos(psi), sn = Math.sin(psi);
-  const rot = (x, z) => [cs * x + sn * z, -sn * x + cs * z];
-  const off = rot(0.18, 0.34);
-  pe(p, 0, hx + off[0], 0.52 * H, hz + off[1]);
-  _qa.setFromAxisAngle(AXY, psi); _qb.setFromAxisAngle(AXX, -0.62); _qa.multiply(_qb); pq(p, _qa);
-  for (let si = 0; si < 2; si++) {
-    const a = A[si === 1 ? 0 : 1], b = B[si === 1 ? 0 : 1];
-    const moving = Math.hypot(a[0] - b[0], a[1] - b[1]) > 0.05;
-    const lx = lerp(a[0], b[0], e) * H, lz = lerp(a[1], b[1], e) * H;
-    const w = rot(lx, lz);
-    const o = LO(si);
-    p[o] = hx + off[0] + w[0]; p[o + 1] = 0.07 + (moving ? 0.07 * Math.sin(PI * f) : 0); p[o + 2] = hz + off[1] + w[1];
-    const pl = rot((si ? 1 : -1) * 0.5, -1);
-    p[o + 3] = pl[0]; p[o + 4] = 0.2; p[o + 5] = pl[1]; p[o + 6] = psi; p[o + 7] = 0;
-  }
-  parm(p, 0, hx, 0.05, hz, -0.6, 0.2, 0.6, 1, 0.4, -1.1, 0, 0, 0.1);
-  const flick = Math.sin(TAU * u * 2);
-  parm(p, 1, 0.36, -0.12 + 0.1 * flick, -0.08, 1, 0.3, 0.3, 0, 0.3, 0.2, 0, 0, 0.5);
-  p[10] = 0.1; p[13] = 0.3; p[16] = 0.25; p[7] = -0.1;
-}
-
 function bdWindmill(p, c, lb) {
   p.fill(0); p[6] = 1;
   const rate = c.per < 0.5 ? 0.5 : 0.8;
-  const psi = TAU * rate * Math.max(0, lb - 11.3);
-  const tau = 0.32;
-  _qa.setFromAxisAngle(AXY, psi); _qb.setFromAxisAngle(AXX, PI / 2 + tau); _qc.setFromAxisAngle(AXY, -psi * 1.0 + 0.4);
+  const psi = TAU * rate * Math.max(0, lb - 11);
+  const tau = 0.45;
+  _qa.setFromAxisAngle(AXY, psi); _qb.setFromAxisAngle(AXX, PI / 2 + tau); _qc.setFromAxisAngle(AXY, -psi + 0.4);
   _qa.multiply(_qb).multiply(_qc);
   pq(p, _qa);
-  _v3.set(0, 0.36 * c.H, 0).applyQuaternion(_qa);
-  pe(p, 0, -_v3.x, 0.14 - _v3.y, -_v3.z);
+  _v3.set(0, 0.34 * c.H, 0).applyQuaternion(_qa);
+  pe(p, 0, -_v3.x, 0.15 - _v3.y, -_v3.z);
   p[69] = 1; p[68] = 1; p[67] = 1;
   const pump = Math.sin(TAU * rate * lb * 2);
-  pfk(p, 0, 0.75 + 0.3 * pump, -0.8, 0, -1.0);
-  pfk(p, 1, 0.75 - 0.3 * pump, 0.8, 0, -1.0);
+  pfk(p, 0, 1.05 + 0.3 * pump, -0.95, 0, -1.0);
+  pfk(p, 1, 1.05 - 0.3 * pump, 0.95, 0, -1.0);
   for (let si = 0; si < 2; si++) { const s = si ? 1 : -1; parm(p, si, s * 0.07, -0.18, -0.2, s, -0.6, 0.3, 0, s * 0.6, 0.3, 0, 0, 0.6); pleg(p, si, s * 0.3, 0.3, 0.4, 0, 0, -1, 0, -1); }
   p[13] = -0.35; p[16] = -0.2; p[10] = -0.15;
 }
 
+function bdFlare(p, c, lb) {
+  p.fill(0); p[6] = 1;
+  const H = c.H;
+  const rate = c.per < 0.5 ? 0.5 : 0.75;
+  const u = Math.max(0, lb - 5);
+  const psi = TAU * rate * u;
+  _qa.setFromAxisAngle(AXY, psi); _qb.setFromAxisAngle(AXX, -1.08); _qc.setFromAxisAngle(AXZ, 0.3 * Math.sin(psi * 2));
+  _qa.multiply(_qb).multiply(_qc);
+  pq(p, _qa);
+  const px = Math.sin(psi * 2) * 0.06, pz = Math.cos(psi * 2) * 0.06, py = 0.44 * H + 0.03 * Math.sin(psi * 2);
+  pe(p, 0, px, py, pz);
+  _v3.set(0, 0.45 * H, 0).applyQuaternion(_qa);
+  const shx = px + _v3.x, shz = pz + _v3.z;
+  p[69] = 1; p[68] = 1; p[67] = 1;
+  const sw = Math.sin(psi * 2);
+  pfk(p, 0, 0.35 + 0.35 * sw, -1.3, 0, -1.0);
+  pfk(p, 1, 0.35 - 0.35 * sw, 1.3, 0, -1.0);
+  const half = fract(rate * u * 2);
+  const cs = Math.cos(psi), sn = Math.sin(psi);
+  for (let si = 0; si < 2; si++) {
+    const s = si ? 1 : -1;
+    const lift = (si ? bump(half, 0.05, 0.45) : bump(half, 0.55, 0.95)) * 0.1;
+    parm(p, si, shx + cs * s * 0.16, 0.035 + lift, shz - sn * s * 0.16, s * cs * 0.3, 0.3, -s * sn * 0.3 + 0.3, 1, 0, -1.1, 0, 0, 0.15);
+    pleg(p, si, s * 0.4, 0.5, 0.3, 0, 0, -1, 0, -1);
+  }
+  p[10] = 0.2; p[13] = 0.35; p[16] = 0.3;
+}
+
 function bdHeadspin(p, c, lb) {
   p.fill(0); p[6] = 1;
-  const t = Math.max(0, lb - 18.6);
+  const t = Math.max(0, lb - 17.2);
   const rate = c.per < 0.5 ? 1.0 : 1.4;
   const psi = TAU * rate * (t + 0.08 * t * t);
   _qa.setFromAxisAngle(AXY, psi); _qb.setFromAxisAngle(AXX, PI - 0.06);
@@ -2440,7 +2858,7 @@ function bdHeadspin(p, c, lb) {
   const sc = 0.15 * Math.sin(TAU * lb * 0.5);
   pfk(p, 0, 0.12 + sc, -0.55, -0.05, -1.0);
   pfk(p, 1, 0.12 - sc, 0.55, -0.05, -1.0);
-  const tap = smooth(19.4, 20.4, lb);
+  const tap = smooth(18, 19, lb);
   for (let si = 0; si < 2; si++) {
     const s = si ? 1 : -1;
     parm(p, si, s * lerp(0.36, 0.6, tap), lerp(-0.2, 0.08, tap), lerp(-0.18, 0.0, tap), s * 0.2, lerp(1, -0.5, tap), 0.3, 0, -s * 0.3, -0.3, 0, 0, lerp(0.1, 0.2, tap));
@@ -2452,19 +2870,17 @@ function bdHeadspin(p, c, lb) {
 function bdFreeze(p, c, lb) {
   p.fill(0); p[6] = 1;
   const H = c.H;
-  _qa.setFromAxisAngle(AXY, 0.5); _qb.setFromAxisAngle(AXZ, 1.18); _qc.setFromAxisAngle(AXX, -0.25);
-  _qa.multiply(_qb).multiply(_qc);
+  _qa.setFromAxisAngle(AXY, 0.6); _qb.setFromAxisAngle(AXX, PI - 0.42);
+  _qa.multiply(_qb);
   pq(p, _qa);
-  pe(p, 0, 0.12, 0.5 * H, 0.0);
+  pe(p, 0, 0.0, 1.0 * H, -0.12);
   p[69] = 1; p[68] = 1; p[67] = 1;
-  pfk(p, 0, 1.9, -0.4, -1.9, -0.8);
-  pfk(p, 1, 0.9, 0.55, -0.2, -0.9);
-  for (let si = 0; si < 2; si++) pleg(p, si, 0, 0.5, 0, 0, 0, -1, 0, -1);
-  const hold = 1 - 0.03 * Math.sin(TAU * lb * 2);
-  parm(p, 0, -0.33, 0.035, 0.05, -0.2, 0.3, 1, 1, 0.5, -1.2, 0, 0, 0.0);
-  parm(p, 1, 0.5 * hold, 0.3, -0.25, 1, 0, 0.3, 0, -1.2, -0.3, 0, 0, 0.1);
-  p[7] = 0.1; p[10] = 0.15; p[13] = -0.15; p[16] = 0.2; p[18] = -0.2;
-  p[19] = 0.6;
+  const br = 0.015 * Math.sin(TAU * lb * 0.5);
+  pfk(p, 0, 0.55 + br, -0.45, -1.7, -1.0);
+  pfk(p, 1, -0.35, 0.4, -0.25, -1.0);
+  for (let si = 0; si < 2; si++) { const s = si ? 1 : -1; parm(p, si, s * 0.17, 0.03, -0.02, 0, 0.2, 1, 1, 0, -1.1, 0, 0, 0.1); pleg(p, si, s * 0.3, 1.6, 0, 0, 0, -1, 0, -1); }
+  p[13] = 0.25; p[16] = 0.35; p[10] = 0.15; p[7] = 0.1;
+  p[19] = 0.5;
 }
 
 function bdCrouch(p, c, lb) {
@@ -2477,8 +2893,8 @@ function bdCrouch(p, c, lb) {
 }
 
 const BD = [
-  [0, 4, bdToprock, 0.5], [4, 11, bdSix, 1.0], [11, 18.5, bdWindmill, 0.9], [18.5, 25.5, bdHeadspin, 0.8],
-  [25.5, 29, bdFreeze, 0.22], [29, 30, bdCrouch, 0.6], [30, 32, bdToprock, 0.7],
+  [0, 4, bdToprock, 0.5], [4, 5, bdCrouch, 0.18], [5, 11, bdFlare, 0.22], [11, 17, bdWindmill, 0.25], [17, 24, bdHeadspin, 0.3],
+  [24, 28, bdFreeze, 0.12], [28, 29, bdCrouch, 0.22], [29, 32, bdToprock, 0.4],
 ];
 const _bp = new Float32Array(PN);
 
@@ -2593,6 +3009,7 @@ class Actor {
       r.eul[fo * 3 + 1] = F[ao + 7];
       r.set(ha, F[ao + 9], F[ao + 10], -s * F[ao + 8]);
       r.set(fi, 0, 0, -s * F[ao + 11] * 1.9);
+      r.hand[si] = clamp(F[ao + 11]); r.hand[2 + si] = 0;
       r.set(cl, 0, F[ao + 12], s * F[ao + 13]);
       r.armOn[si] = 1; r.armW[si] = 1;
       r.armT[k] = this.armWT[k]; r.armT[k + 1] = this.armWT[k + 1]; r.armT[k + 2] = this.armWT[k + 2];
@@ -2636,7 +3053,8 @@ class Actor {
 }
 
 export class Clergy {
-  constructor(scene, { priest = { x: 0, y: 0, z: 0, yaw: 0 }, server = { x: 1, y: 0, z: 0, yaw: 0 }, deck = true } = {}) {
+  constructor(scene, { priest = { x: 0, y: 0, z: 0, yaw: 0 }, server = { x: 1, y: 0, z: 0, yaw: 0 }, deck = true, autoShed = true } = {}) {
+    this.autoShed = autoShed;
     this.scene = scene;
     this.mode = 'idle'; this.voice = 0;
     this.pool = new RigPool(NB_CLERGY, 2);
@@ -2648,11 +3066,11 @@ export class Clergy {
     const S = (row, slot, c, pat, rough = 0.85, metal = 0, ex = 0) => this.pool.setSlot(row, slot, new THREE.Color(c), pat, rough, metal, ex);
     S(0, S_SKIN, '#e4b497', PT.skin, 0.55, 0, 0); S(0, S_HAIR, '#c9c5bd', PT.hair, 0.55); S(0, S_COAT, '#f2f0ea', PT.plain, 0.86); S(0, S_TRIM, '#efe7d4', PT.chasuble, 0.62, 0.02, 0.6);
     S(0, S_PANTS, '#1e1e20', PT.plain); S(0, S_LEGS, '#1e1e20', PT.plain); S(0, S_SHOE, '#0d0d0e', PT.leather, 0.3); S(0, S_SOLE, '#141414', PT.plain); S(0, S_INNER, '#f6f4ef', PT.plain, 0.8);
-    S(0, S_SCARF, '#caa24c', PT.plain, 0.35, 0.75); S(0, S_GLASS, '#2a2522', PT.plain, 0.3, 0.4); S(0, S_IRIS, '#5d7a94', PT.plain); S(0, S_HAND, '#e4b497', PT.skin, 0.55);
+    S(0, S_SCARF, '#caa24c', PT.plain, 0.35, 0.75); S(0, S_EXTRA, '#f2f0ea', PT.plain, 0.86); S(0, S_GLASS, '#2a2522', PT.plain, 0.3, 0.4); S(0, S_IRIS, '#5d7a94', PT.plain); S(0, S_HAND, '#e4b497', PT.skin, 0.55);
     this.pool.pal[(0 * NSLOT * 2 + S_IRIS * 2 + 1) * 4] = 0.8;
     S(1, S_SKIN, '#f1cfb8', PT.skin, 0.55, 0, 6); S(1, S_HAIR, '#4b3626', PT.hair, 0.55); S(1, S_COAT, '#141417', PT.plain, 0.8); S(1, S_HAT, '#f6f4ef', PT.lace, 0.85, 0, 0.66);
     S(1, S_PANTS, '#141417', PT.plain); S(1, S_LEGS, '#141417', PT.plain); S(1, S_SHOE, '#0d0d0e', PT.leather, 0.3); S(1, S_SOLE, '#141414', PT.plain); S(1, S_INNER, '#141417', PT.plain);
-    S(1, S_IRIS, '#4f6f8f', PT.plain); S(1, S_HAND, '#f1cfb8', PT.skin, 0.55); S(1, S_TRIM, '#141417', PT.plain);
+    S(1, S_IRIS, '#4f6f8f', PT.plain); S(1, S_EXTRA, '#141417', PT.plain, 0.8); S(1, S_HAND, '#f1cfb8', PT.skin, 0.55); S(1, S_TRIM, '#141417', PT.plain);
     this.pool.pal[(1 * NSLOT * 2 + S_IRIS * 2 + 1) * 4] = 1.05;
     this.pool.palTex.needsUpdate = true;
     this.meshes = [];
@@ -2681,6 +3099,11 @@ export class Clergy {
     this.censer = th.censer; this.chains = th.chains; this.cring = th.ring;
     scene.add(this.censer, this.cring, ...this.chains);
     this.censerPos = new THREE.Vector3();
+    this.smokePos = new THREE.Vector3();
+    this.vestOn = true;
+    this.cape = thrownChasuble();
+    scene.add(this.cape);
+    this.toss = null;
     this.pend = null; this.kickV = 0; this.drive = 0;
     this.deck = deck ? deckProps() : null;
     if (this.deck) { this.deck.g.visible = false; scene.add(this.deck.g); }
@@ -2695,13 +3118,30 @@ export class Clergy {
 
   kick(amount = 1) { this.kickV += amount; }
 
+  shedChasuble() {
+    if (!this.vestOn) return;
+    this.vestOn = false;
+    const r = this.P.r, root = this.priestRoot, yaw = root.rotation.y;
+    r.point(CH, 0, 0.05, -0.05, _p3);
+    if (Math.abs(_p3[1] - root.position.y) < 0.3) { _p3[0] = root.position.x; _p3[1] = root.position.y + 1.25; _p3[2] = root.position.z; }
+    const lx = 1.0, lz = 0.35;
+    this.toss = {
+      t: 0, from: new THREE.Vector3(_p3[0], _p3[1], _p3[2]),
+      to: new THREE.Vector3(root.position.x + Math.cos(yaw) * lx + Math.sin(yaw) * lz, root.position.y + 0.03, root.position.z - Math.sin(yaw) * lx + Math.cos(yaw) * lz),
+      yaw: yaw + 0.7,
+    };
+    this.cape.visible = true;
+  }
+
+  wearChasuble() { this.vestOn = true; this.toss = null; this.cape.visible = false; }
+
   update(dt, t, beat, beatPhase, energy = 0) {
     dt = Math.min(Math.max(dt, 0), 0.1);
     const db = beat - this.lastBeat;
     if (dt > 0 && db > 0 && db < 1) this.per = damp(this.per, clamp(dt / db, 0.25, 1.5), 2, dt);
     this.lastBeat = beat;
     const mode = MODES.includes(this.mode) ? this.mode : 'idle';
-    if (mode !== this.lastMode) { if (mode === 'breakdance') this.bdStart = Math.floor(beat + 0.02); this.lastMode = mode; }
+    if (mode !== this.lastMode) { if (mode === 'breakdance') { this.bdStart = Math.floor(beat + 0.02); if (this.autoShed && this.vestOn) this.shedChasuble(); } this.lastMode = mode; }
     const PA = this.P, SA = this.Sv;
     for (const m of MODES) {
       const target = m === mode ? 1 : 0;
@@ -2720,8 +3160,10 @@ export class Clergy {
     PA.locomote(dt);
     Object.assign(c, { wph: PA.wph, wdx: PA.wdx, wdz: PA.wdz, wsp: PA.wsp });
     PA.pose(dt, c, mw);
-    this.panelSim(dt);
+    if (this.vestOn) this.panelSim(dt);
+    PA.r.misc[0] = this.vestOn ? 1 << PR.vest : 0;
     PA.r.write();
+    this.tossUpdate(dt);
     const rave = RAVE[mode] ? 1 : 0;
     for (const m of MODES) this.sw[m] = 0;
     const sc = this.sctx;
@@ -2729,16 +3171,26 @@ export class Clergy {
     this.raveS = damp(this.raveS || 0, rave * (0.5 + 0.5 * energy), 2, dt);
     Object.assign(sc, { t, b: beat - 0.02, ph: fract(beat - 0.02), per: this.per, e: energy, v: 0, el: 0, gst: 0, gst2: 0, lb: 0, wph: SA.wph, wdx: SA.wdx, wdz: SA.wdz, wsp: SA.wsp, rave: this.raveS, drive: this.drive });
     this.sw.idle = 1;
+    PA.r.point(HD, 0, 0.09, -0.02, _p3); SA.r.point(HD, 0, 0.09, -0.02, _p4);
+    const sy = this.serverRoot.rotation.y;
+    const dx = _p3[0] - _p4[0], dy = _p3[1] - _p4[1], dz = _p3[2] - _p4[2];
+    const lx = Math.cos(sy) * dx - Math.sin(sy) * dz, lz = Math.sin(sy) * dx + Math.cos(sy) * dz;
+    const glance = fract(t / 7.3) > 0.72;
+    const ty = glance ? -0.35 + 0.2 * Math.sin(t * 0.4) : clamp(Math.atan2(-lx, -lz), -1.1, 1.1), tp = glance ? -0.05 : clamp(Math.atan2(dy, Math.hypot(lx, lz)), -0.3, 0.5);
+    this.svY = damp(this.svY || 0, ty, 4, dt); this.svP = damp(this.svP || 0, tp, 4, dt);
+    const nodK = energy > 0.08 ? snap(fract(beat) * this.per, 0.05, 0.03, 7) * (0.55 + 0.45 * this.raveS) : 0;
     SA.pose(dt, sc, this.sw, (act, cc) => {
       const b = act[0][1];
       const rv = cc.rave;
       if (rv > 0.01) {
         const dip = bounceLegs(b, cc, rv * 0.9, 0.11);
-        b[13] = -0.15 * pulse(cc.ph, 5) * rv; b[10] -= 0.04 * dip * rv;
+        b[10] -= 0.04 * dip * rv;
       }
+      b[0] += 0.02 * Math.sin(cc.t * 0.45) * (1 - rv); b[10] += 0.012 * Math.sin(cc.t * 1.7);
       parm(b, 0, -0.04, -0.12, -0.17, -1, -0.5, 0.5, 0, -0.6, 0.2, 0, 0, 0.5);
       parm(b, 1, 0.23, -0.27 + 0.03 * cc.drive * (1 + rv), -0.12 - (0.07 + 0.08 * rv) * cc.drive, 1, -0.2, 0.8, 0, 0.3, 0.1, 0, 0, 0.95);
-      b[17] = 0.25 * Math.sin(cc.t * 0.2) * (1 - rv); b[16] = -0.06;
+      b[14] = 0.4 * this.svY; b[17] = 0.6 * this.svY; b[11] = 0.1 * this.svY;
+      b[13] = 0.3 * this.svP - 0.13 * nodK; b[16] = 0.5 * this.svP - 0.11 * nodK;
     });
     SA.r.write();
     this.pool.tex.needsUpdate = true;
@@ -2758,15 +3210,17 @@ export class Clergy {
     }
     const n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n;
     const ch = CH * 12;
+    const legs = [];
+    for (const [a, b] of [[THL, SHL], [THR, SHR], [SHL, FTL], [SHR, FTR]]) { const A = [0, 0, 0], B = [0, 0, 0]; r.point(a, 0, 0, 0, A); r.point(b, 0, 0, 0, B); legs.push([A, B]); }
     for (const pn of this.panels) {
       const b = pn.b, front = b === CFU;
       const piv = [0, 0, 0]; r.point(b, 0, 0, 0, piv);
       const rest1 = [0, 0, 0]; r.point(CH, 0, BIND[b][1] - BIND[CH][1] - l1, (front ? -0.03 : 0.03) + BIND[b][2] - BIND[CH][2], rest1);
       const rest2 = [0, 0, 0]; r.point(CH, 0, BIND[b][1] - BIND[CH][1] - l1 - l2, (front ? -0.05 : 0.05) + BIND[b][2] - BIND[CH][2], rest2);
       for (let i = 0; i < n; i++) {
-        for (const [p, q, rest, k] of [[pn.p1, pn.q1, rest1, 30], [pn.p2, pn.q2, rest2, 14]]) {
+        for (const [p, q, rest, k] of [[pn.p1, pn.q1, rest1, 80], [pn.p2, pn.q2, rest2, 45]]) {
           for (let a = 0; a < 3; a++) {
-            const v = (p[a] - q[a]) * Math.exp(-3.2 * h);
+            const v = (p[a] - q[a]) * Math.exp(-6 * h);
             q[a] = p[a];
             p[a] += v + ((a === 1 ? -9.81 : 0) + (rest[a] - p[a]) * k) * h * h;
           }
@@ -2777,6 +3231,13 @@ export class Clergy {
           bb[0] = a[0] + dx * f; bb[1] = a[1] + dy * f; bb[2] = a[2] + dz * f;
         }
         for (const p of [pn.p1, pn.p2]) {
+          for (const [A, B] of legs) {
+            const ex = B[0] - A[0], ey = B[1] - A[1], ez = B[2] - A[2], el = ex * ex + ey * ey + ez * ez || 1;
+            const tt = clamp(((p[0] - A[0]) * ex + (p[1] - A[1]) * ey + (p[2] - A[2]) * ez) / el);
+            const cx = A[0] + ex * tt, cy = A[1] + ey * tt, cz = A[2] + ez * tt;
+            const dx = p[0] - cx, dy = p[1] - cy, dz = p[2] - cz, d = Math.hypot(dx, dy, dz), R = 0.14;
+            if (d < R && d > 1e-5) { const f = R / d; p[0] = cx + dx * f; p[1] = cy + dy * f; p[2] = cz + dz * f; }
+          }
           const rx = p[0] - W[ch + 9], ry = p[1] - W[ch + 10], rz = p[2] - W[ch + 11];
           const lz = W[ch + 2] * rx + W[ch + 5] * ry + W[ch + 8] * rz;
           const lim = front ? -0.11 * H : 0.12 * H;
@@ -2796,6 +3257,18 @@ export class Clergy {
       setDir(b, CH, piv, pn.p1, l1);
       setDir(b + 1, b, pn.p1, pn.p2, l2);
     }
+  }
+
+  tossUpdate(dt) {
+    const T = this.toss;
+    if (!T) return;
+    T.t = Math.min(1, T.t + dt / 0.85);
+    const k = T.t, e = k * k * (3 - 2 * k);
+    this.cape.position.lerpVectors(T.from, T.to, e);
+    this.cape.position.y += Math.sin(PI * k) * 0.9;
+    const land = smooth(0.75, 1, k);
+    this.cape.rotation.set(lerp(0.2 + k * 5.5, -PI / 2, land), T.yaw + k * 2.5 * (1 - land), lerp(k * 3, 0, land));
+    if (k >= 1) this.toss = null;
   }
 
   thurible(dt, energy, rave) {
@@ -2833,6 +3306,7 @@ export class Clergy {
     this.censer.position.copy(pd.p).addScaledVector(_va, -0.02);
     this.censer.quaternion.setFromUnitVectors(AXY, _va);
     this.censerPos.copy(this.censer.position);
+    this.smokePos.set(0, 0.11, 0).applyQuaternion(this.censer.quaternion).add(this.censer.position);
     this.cring.position.copy(piv);
     this.cring.quaternion.copy(this.censer.quaternion);
     for (let i = 0; i < 4; i++) {

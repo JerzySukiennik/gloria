@@ -60,7 +60,8 @@ export const HPEWS = { rows: 10, z0: -2.4, pitch: 0.96, left: [-25.2, -17.5], ri
 export const PIT = { x0: -23.6, x1: -9.2, z0: -6.15, z1: -3.3 };
 export const LOFT = { z0: 6.95, y: 3.8, x0: -26.6, x1: -6.24 };
 export const HDOME = { x: -16.42, z: -3.6, a: 4.6, b: 3.1, rim: 0.45, drum: 1.4, win: 0.7, cap: 0.9 };
-export const BOTA = [{ x: -16.42, z: -0.6, len: 4.5 }, { x: -16.42, z: 4.4, len: 4.1 }];
+export const BOTA = [{ x: -16.42, z: -0.6, len: 3.1 }, { x: -16.42, z: 4.4, len: 2.8 }];
+export const RISER = { x: -16.42, z: -7.45, w: 2.6, d: 1.6, h: 0.7 };
 export const DISCO = { x: -16.42, y: 7.2, z: 1.9 };
 export const MIRROR_X = 2 * HALL.xc;
 

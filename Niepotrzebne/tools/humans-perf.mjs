@@ -6,7 +6,7 @@ const [query = '?n=220', W = '1280', H = '800'] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--disable-frame-rate-limit', '--disable-gpu-vsync'] });
 const page = await browser.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => console.log('page error:', e.message));
-await page.goto('http://localhost:8851/humans.html' + query);
+await page.goto('http://localhost:' + (process.env.HPORT || 8851) + '/humans.html' + query);
 await page.waitForFunction(() => window.__h && window.__h.ready, null, { timeout: 30000 });
 await page.waitForTimeout(2500);
 const r = await page.evaluate(async () => {

@@ -24,22 +24,22 @@ export class Lasers {
   constructor(scene, quality) {
     this.emitters = [];
     const xc = HALL.xc;
-    const spots = [[xc - 7.5, 0.72, STAGE.z1 + 0.05], [xc - 3, 0.72, STAGE.z1 + 0.05], [xc + 3, 0.72, STAGE.z1 + 0.05], [xc + 7.5, 0.72, STAGE.z1 + 0.05], [xc - 6, HALL.h - 0.5, -11.0], [xc + 6, HALL.h - 0.5, -11.0], [xc, HALL.h - 0.5, -11.6], [-26.0, 6.2, -2.9], [-6.84, 6.2, -2.9], [-26.0, 6.2, 4.0], [-6.84, 6.2, 4.0]];
-    const cols = ['#2bff6a', '#19d4ff', '#ff2bd6', '#8a5cff', '#2bff6a', '#19d4ff', '#ffffff', '#2bff6a', '#ff2bd6', '#19d4ff', '#8a5cff'];
-    this.per = quality === 'low' ? 7 : quality === 'mid' ? 12 : 18;
-    spots.forEach((p, i) => this.emitters.push({ pos: new THREE.Vector3(...p), color: new THREE.Color(cols[i]), top: p[1] > 2 && i < 7, side: i >= 7 ? (p[0] < xc ? 1 : -1) : 0, i }));
+    const spots = [[xc - 3, 0.72, STAGE.z1 + 0.05], [xc + 3, 0.72, STAGE.z1 + 0.05], [xc - 6, HALL.h - 0.5, -11.0], [xc + 6, HALL.h - 0.5, -11.0], [xc, HALL.h - 0.5, -11.6], [-26.0, 6.2, -2.9], [-6.84, 6.2, -2.9]];
+    const cols = ['#2bff6a', '#19d4ff', '#ff2bd6', '#8a5cff', '#ffffff', '#2bff6a', '#19d4ff'];
+    this.per = quality === 'low' ? 4 : quality === 'mid' ? 6 : 8;
+    spots.forEach((p, i) => this.emitters.push({ pos: new THREE.Vector3(...p), color: new THREE.Color(cols[i]), top: p[1] > 2 && i < 5, side: i >= 5 ? (p[0] < xc ? 1 : -1) : 0, i }));
     const n = this.emitters.length * this.per;
     const geo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
     geo.translate(0, 0.5, 0);
-    this.uniforms = { uHaze: { value: 0.5 }, uI: { value: 0 } };
+    this.uniforms = { uHaze: { value: 0.5 }, uI: { value: 0 }, uCol: { value: new THREE.Color(0.2, 1, 0.4) }, uRainbow: { value: 0 } };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
-      vertexShader: `attribute vec3 aColor; varying vec3 vC; varying float vY; varying vec3 vN; varying vec3 vW;
-        void main(){ vC = aColor; vY = position.y; vec4 w = modelMatrix * instanceMatrix * vec4(position,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix * instanceMatrix) * vec3(position.x, 0.0, position.z)); gl_Position = projectionMatrix * viewMatrix * w; }`,
+      vertexShader: `attribute vec3 aColor; uniform vec3 uCol; uniform float uRainbow; varying vec3 vC; varying float vY; varying vec3 vN; varying vec3 vW;
+        void main(){ vC = mix(uCol, aColor, uRainbow); vY = position.y; vec3 p = position; p.xz *= 1.0 + p.y * 2.5; vec4 w = modelMatrix * instanceMatrix * vec4(p,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix * instanceMatrix) * vec3(position.x, 0.0, position.z)); gl_Position = projectionMatrix * viewMatrix * w; }`,
       fragmentShader: `uniform float uHaze; uniform float uI; varying vec3 vC; varying float vY; varying vec3 vN; varying vec3 vW;
-        void main(){ vec3 vd = normalize(cameraPosition - vW); float e = pow(abs(dot(normalize(vN), vd)), 2.0);
-          float a = e * uI * (0.45 + uHaze * 1.1) * (1.0 - vY * 0.5);
-          gl_FragColor = vec4(vC * a * 3.6, 1.0); }`,
+        void main(){ vec3 vd = normalize(cameraPosition - vW); float e = pow(abs(dot(normalize(vN), vd)), 1.6);
+          float a = e * uI * (0.35 + uHaze * 1.2) * (1.0 - vY * 0.75) * smoothstep(0.0, 0.02, vY);
+          gl_FragColor = vec4(vC * a * 2.4, 1.0); }`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     });
     this.mesh = new THREE.InstancedMesh(geo, mat, n);
@@ -66,11 +66,14 @@ export class Lasers {
   update(t, beat, o) {
     this.uniforms.uI.value = o.intensity;
     this.uniforms.uHaze.value = o.haze;
+    if (o.color) this.uniforms.uCol.value.copy(o.color);
+    this.uniforms.uRainbow.value = o.rainbow ? 1 : 0;
     if (o.intensity < 0.01) { this.mesh.count = 0; return; }
     let k = 0;
     const b = beat;
     for (const e of this.emitters) {
       if (o.only !== undefined && !o.only.includes(e.i)) continue;
+      if (o.mode === 5 && !e.top) continue;
       for (let j = 0; j < this.per; j++) {
         const u = this.per > 1 ? j / (this.per - 1) - 0.5 : 0;
         let yaw, pitch;
@@ -81,11 +84,12 @@ export class Lasers {
           const d = this._d.set(e.side * Math.cos(a) * Math.cos(pt), Math.sin(pt), Math.sin(a) * Math.cos(pt)).normalize();
           const len = rayBox(e.pos, d);
           this._q.setFromUnitVectors(UP, d);
-          this._m.compose(e.pos, this._q, new THREE.Vector3(0.014, len, 0.014));
+          this._m.compose(e.pos, this._q, new THREE.Vector3(0.03, len, 0.03));
           this.mesh.setMatrixAt(k++, this._m);
           continue;
         }
-        if (o.mode === 4) { yaw = u * 2.2 + Math.sin(t * 1.2) * 0.25; pitch = e.top ? -0.12 - Math.abs(u) * 0.05 : 0.33; }
+        if (o.mode === 5) { yaw = u * 2.1 + Math.sin(t * 0.6) * 0.15; pitch = -0.24 + Math.sin(b * Math.PI * 0.5) * 0.03; }
+        else if (o.mode === 4) { yaw = u * 2.2 + Math.sin(t * 1.2) * 0.25; pitch = e.top ? -0.12 - Math.abs(u) * 0.05 : 0.33; }
         else if (o.mode === 0) { yaw = u * 1.6 + Math.sin(t * 0.7 + e.i) * 0.5; pitch = (e.top ? -0.5 : 0.18) + Math.sin(b * Math.PI * 0.5 + e.i) * 0.12; }
         else if (o.mode === 1) { const a = u * Math.PI * 2 + t * 2.2 * dir; yaw = Math.cos(a) * 0.35; pitch = (e.top ? -0.55 : 0.32) + Math.sin(a) * 0.3; }
         else if (o.mode === 2) { yaw = Math.sin(b * Math.PI * 0.25 + e.i * 0.8) * 1.0 + u * 0.08; pitch = (e.top ? -0.45 : 0.05) + u * 0.9; }
@@ -96,7 +100,7 @@ export class Lasers {
         d.normalize();
         const len = rayBox(e.pos, d);
         this._q.setFromUnitVectors(UP, d);
-        this._m.compose(e.pos, this._q, new THREE.Vector3(0.012, len, 0.012));
+        this._m.compose(e.pos, this._q, new THREE.Vector3(0.026, len, 0.026));
         this.mesh.setMatrixAt(k++, this._m);
       }
     }
@@ -304,15 +308,15 @@ export class Thuribles {
   }
   update(dt, t) {
     for (const it of this.items) {
-      it.amp += (this.target - it.amp) * Math.min(1, dt * 0.35);
+      it.amp += (this.target - it.amp) * Math.min(1, dt * (this.target > it.amp ? 0.6 : 0.25));
       it.phase += dt * it.w;
       const a = Math.sin(it.phase) * it.amp;
       it.pivot.rotation.z = a;
       it.prev.copy(it.pos);
       it.pos.set(it.pivot.position.x + Math.sin(a) * it.len, it.pivot.position.y - Math.cos(a) * it.len, it.pivot.position.z);
       const speed = it.prev.distanceTo(it.pos) / Math.max(dt, 1e-3);
-      const n = Math.random() < dt * (6 + speed * 6) ? 1 + (speed > 4 ? 1 : 0) : 0;
-      if (n) this.smoke.emit(it.pos, n, { vel: { x: 0, y: 0.25, z: 0 }, jitter: 0.12, life: 5.5, size: 0.28 + speed * 0.03, grow: 0.7, opacity: 0.2 });
+      const n = Math.random() < dt * (10 + speed * 9) ? 1 + (speed > 3 ? 1 : 0) : 0;
+      if (n) this.smoke.emit(it.pos, n, { vel: { x: -Math.cos(a) * speed * 0.08, y: 0.3, z: 0 }, jitter: 0.08, life: 7, size: 0.34 + speed * 0.04, grow: 0.9, opacity: 0.26 });
     }
   }
 }
@@ -338,7 +342,7 @@ export class DiscoBall {
     this.uniforms = { uI: { value: 0 }, uColor: { value: new THREE.Color(1, 1, 1) } };
     this.dots = new THREE.Points(g, new THREE.ShaderMaterial({
       uniforms: this.uniforms,
-      vertexShader: `void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; gl_PointSize = 14.0 * 8.0 / max(1.0, -mv.z); }`,
+      vertexShader: `void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; gl_PointSize = 7.0 * 8.0 / max(1.0, -mv.z); }`,
       fragmentShader: `uniform float uI; uniform vec3 uColor; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.15, d) * uI; gl_FragColor = vec4(uColor * a * 3.0, 1.0); }`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     }));

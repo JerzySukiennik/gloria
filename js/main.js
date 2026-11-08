@@ -5,7 +5,7 @@ import { Smoke, SunBeams, Glitter } from './fx.js';
 import { Lasers, MovingHeads, Pyro, Thuribles, DiscoBall, Confetti, Blinders } from './rave.js';
 import { AudioEngine } from './audio.js';
 import { Player } from './player.js';
-import { HALL, HPEWS, PEWS, PIT, HALTAR, STAGE, MIRROR_X } from './layout.js';
+import { HALL, HPEWS, PEWS, PIT, HALTAR, STAGE, MIRROR_X, RISER } from './layout.js';
 import { clamp, lerp, damp, rnd, canvasTex } from './util.js';
 
 const SONGS = {
@@ -70,9 +70,10 @@ function places() {
     }
   }
   for (const p of chapel) if (r() < 0.62) out.push(p);
-  for (let z = PIT.z0 + 0.35; z < PIT.z1; z += 0.78) for (let x = PIT.x0; x < PIT.x1; x += 0.82) {
-    if (Math.abs(x - HALL.xc) < 0.9 && z < PIT.z0 + 0.9) continue;
-    if (r() < 0.72) out.push({ x: x + (r() - 0.5) * 0.3, z: z + (r() - 0.5) * 0.25, yaw: (r() - 0.5) * 0.6, kind: 'stand' });
+  const [sx, sz, fill] = Q === 'low' ? [0.76, 0.72, 0.8] : [0.6, 0.58, 0.9];
+  for (let z = PIT.z0 + 0.3; z < PIT.z1; z += sz) for (let x = PIT.x0; x < PIT.x1; x += sx) {
+    if (Math.abs(x - HALL.xc) < 0.7 && z < PIT.z0 + 0.6) continue;
+    if (r() < fill) out.push({ x: x + (r() - 0.5) * 0.2, z: z + (r() - 0.5) * 0.18, yaw: (r() - 0.5) * 0.6, kind: 'stand' });
   }
   return out;
 }
@@ -83,7 +84,7 @@ const special = [
 ];
 const allPlaces = places().filter((p) => !special.some((s) => Math.hypot(s.x - p.x, s.z - p.z) < 0.4));
 const PRIEST_DJ = { x: HALTAR.x, y: STAGE.h, z: HALTAR.z - 0.78, yaw: Math.PI };
-const PRIEST_BREAK = { x: HALTAR.x, y: STAGE.h, z: STAGE.z1 - 1.25, yaw: Math.PI };
+const PRIEST_BREAK = { x: RISER.x, y: STAGE.h + RISER.h, z: RISER.z, yaw: Math.PI };
 const SERVER = { x: HALTAR.x + 2.7, y: STAGE.h, z: HALTAR.z + 0.6, yaw: Math.PI - 0.45 };
 const crowd = HM ? new HM.Congregation(scene, { places: allPlaces, quality: Q, seed: 7, fill: 0.5, special }) : new OLD.Congregation(scene, Q);
 const clergy = HM ? new HM.Clergy(scene, { priest: PRIEST_DJ, server: SERVER }) : new OLD.Clergy(scene);
@@ -96,9 +97,23 @@ const heads = new MovingHeads(scene);
 const pyro = new Pyro(scene, smoke, stage.pyroLight, Q);
 const bota = new Thuribles(scene, smoke);
 const disco = new DiscoBall(scene, Q === 'low' ? 160 : 280);
-const glitter = new Glitter(scene, Q === 'low' ? 260 : 520);
-const confetti = new Confetti(scene, Q === 'low' ? 600 : Q === 'mid' ? 1400 : 2000);
+const glitter = new Glitter(scene, Q === 'low' ? 80 : 160);
+const confetti = new Confetti(scene, Q === 'low' ? 400 : Q === 'mid' ? 800 : 1200);
 const blinders = new Blinders(scene);
+const riserEdge = new THREE.MeshBasicMaterial({ color: 0x000000 });
+{
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(RISER.w, RISER.h, RISER.d), new THREE.MeshStandardMaterial({ color: 0x0c0c0f, roughness: 0.55, metalness: 0.3 }));
+  deck.position.set(RISER.x, STAGE.h + RISER.h / 2, RISER.z);
+  deck.castShadow = deck.receiveShadow = true;
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(RISER.w + 0.02, 0.035, 0.02), riserEdge);
+  strip.position.set(RISER.x, STAGE.h + RISER.h - 0.03, RISER.z + RISER.d / 2 + 0.005);
+  const strip2 = strip.clone();
+  strip2.position.y = STAGE.h + 0.04;
+  scene.add(deck, strip, strip2);
+}
+const follow = new THREE.SpotLight(0xfff4e8, 0, 22, 0.13, 0.55, 1.2);
+follow.position.set(RISER.x, HALL.h - 0.4, RISER.z + 6.5);
+scene.add(follow, follow.target);
 const WORDS = {};
 function wordTex(w) {
   if (WORDS[w]) return WORDS[w];
@@ -220,6 +235,9 @@ async function mass(skipIntro) {
   A.stopSong(0.5);
   bedStop();
   G.songOn = false;
+  G.dropped = false;
+  if (crowd.tshirts) crowd.tshirts(false);
+  if (clergy.wearChasuble) clergy.wearChasuble();
   A.loop('room', A.amb, 0.45, 3);
   if (!skipIntro) {
     A.loop('chatter', A.amb, 0.5, 2);
@@ -392,18 +410,22 @@ function onBar(p) {
   if (drop && !p.breakdown) {
     pyro.flames('all', 1.3);
     pyro.blast();
-    confetti.burst(Q === 'low' ? 500 : 1100);
+    if (crowd.drop) crowd.drop(p.bi);
+    if (!G.dropped) { G.dropped = true; if (crowd.tshirts) crowd.tshirts(true); if (clergy.shedChasuble) clergy.shedChasuble(); }
+    G.ceiling = p.bar + 2;
+    confetti.burst(Q === 'low' ? 300 : 650);
     G.burst = 1.5;
     G.shake = 1.4;
     G.blind = 1;
     A.play('cheer', A.now, { bus: A.crowd, gain: 0.6 });
   } else if (p.kind === 'high') pyro.flames(p.bar % 2 ? 'odd' : 'even', p.bar % 8 === 0 ? 0.8 : 0.45);
   else if (p.kind === 'mid' && p.bar % 4 === 0) pyro.blast();
-  if (p.bar === G.br.b + 1 && G.br.talk) { pyro.flames('all', 1.4); confetti.burst(Q === 'low' ? 500 : 1200); G.blind = 1; G.burst = 1.6; G.shake = 1.4; }
+  if (p.bar === G.br.b + 1 && G.br.talk) { pyro.flames('all', 1.4); confetti.burst(Q === 'low' ? 300 : 700); if (crowd.drop) crowd.drop(p.bi); G.ceiling = p.bar + 2; G.blind = 1; G.burst = 1.6; G.shake = 1.4; }
   if (p.bar % 8 === 0) G.madGlow = 1;
 }
 
 function onBeat(p) {
+  if (crowd.kick && p.kind !== 'low' && !p.breakdown) crowd.kick(p.kick);
   const strong = p.kind === 'high' ? 1 : p.kind === 'mid' ? 0.75 : 0.35;
   G.flash = Math.max(G.flash, p.on * 0.6 * strong);
   if (p.kick > 0.45 && !p.breakdown) G.domeFlash = Math.max(G.domeFlash, p.kick * strong);
@@ -439,7 +461,7 @@ function updateShow(dt, now) {
   G.ledMix = damp(G.ledMix, p ? 0.95 * Math.min(1, G.R * 1.2) : 0, 2, dt);
   U.uTime.value = G.t;
   U.uBeat.value = beat;
-  U.uLed.value = G.ledMix;
+  U.uLed.value = G.ledMix * (1 - (G.black || 0) * 0.9);
   let pal = DEEP;
   if (p) {
     let mode;
@@ -453,7 +475,10 @@ function updateShow(dt, now) {
   }
   A.levels(G.levels);
   for (let i = 0; i < 8; i++) U.uLevels.value[i] = G.levels[i];
-  const strobe = !!(p && p.kind === 'high' && p.bar % 8 >= 6);
+  const preDrop = !!(p && !p.breakdown && G.drops.has(p.bar + 1));
+  G.black = damp(G.black || 0, preDrop && p.inBar === 3 ? 1 : 0, 22, dt);
+  const lit = 1 - G.black * 0.96;
+  const strobe = !!(p && ((p.kind === 'high' && p.bar % 8 >= 6) || (preDrop && p.inBar < 3)));
   const strobeOn = strobe && ((beat % 1) + 1) % 1 < 0.16;
   G.strobeOn = strobeOn;
   const textOn = !!(p && !p.breakdown && ((p.kind === 'high' && p.phrase % 2 === 1 && p.bar % 8 < 6) || G.drops.has(p.bar)));
@@ -467,7 +492,7 @@ function updateShow(dt, now) {
   U.uTextOn.value = G.text;
   G.flash = damp(G.flash, 0, 8, dt);
   G.burst = damp(G.burst, 0, 1.4, dt);
-  U.uFlash.value = G.flash * 0.15 + G.burst * 0.08 + G.pump * 0.08 + (strobeOn ? 0.6 : 0) + G.blind * 0.15;
+  U.uFlash.value = (G.flash * 0.15 + G.burst * 0.08 + G.pump * 0.08 + (strobeOn ? 0.6 : 0) + G.blind * 0.15) * lit;
   G.cross = damp(G.cross, p && p.breakdown ? 0.95 : 0, p && p.breakdown ? 0.5 : 1.5, dt);
   U.uCross.value = G.cross;
   const dayGain = lerp(1, 0.03, G.dark) * (1 - 0.3 * G.cross);
@@ -476,20 +501,20 @@ function updateShow(dt, now) {
   tmpCol.copy(U.uColA.value).lerp(U.uColB.value, 0.5);
   stage.walls.forEach((l, i) => {
     l.color.copy(dayCol).lerp(tmpCol, G.ledMix * 0.9);
-    l.intensity = stage.wallBase[i] * (dayGain * 0.9 + G.ledMix * 0.45 * (0.35 + 0.65 * G.levels[1]) + G.flash * 0.3 + G.pump * 0.4 + (strobeOn ? 1.6 : 0) + G.blind * 0.5);
+    l.intensity = stage.wallBase[i] * (dayGain * 0.9 + (G.ledMix * 0.14 * (0.35 + 0.65 * G.levels[1]) + G.flash * 0.12 + G.pump * 0.12 + (strobeOn ? 0.35 : 0) + G.blind * 0.12) * lit);
   });
-  stage.hemi.intensity = 0.55 * lerp(1, 0.08, G.dark) + (strobeOn ? 0.8 : 0) + G.blind * 0.25 + G.pump * 0.05;
-  scene.environmentIntensity = 0.55 * lerp(1, 0.18, G.dark);
+  stage.hemi.intensity = 0.55 * lerp(1, 0.015, G.dark) + ((strobeOn ? 0.12 : 0) + G.blind * 0.08) * lit;
+  scene.environmentIntensity = 0.55 * lerp(1, 0.025, G.dark);
   G.domeFlash = damp(G.domeFlash, 0, 7, dt);
   const domeU = church.hall.dome.winMat.uniforms;
-  domeU.uGlow.value = dayGain * 0.9 + G.domeFlash * 1.6 + G.cross * 1.6 + G.burst * 0.5;
+  domeU.uGlow.value = dayGain * 0.9 + (G.domeFlash * 0.7 + G.cross * 1.6 + G.burst * 0.5) * lit;
   domeU.uTint.value.copy(dayCol).lerp(tmpCol, G.ledMix * 0.7).lerp(goldCol, G.cross);
   church.dome.winMat.uniforms.uGlow.value = dayGain * 0.9 + G.domeFlash * 0.8 + G.cross;
   church.dome.winMat.uniforms.uTint.value.copy(domeU.uTint.value);
-  stage.domeLight.intensity = 30 * (dayGain + G.domeFlash * 1.2 + G.cross * 1.5 + G.burst * 0.4);
+  stage.domeLight.intensity = 30 * (dayGain + (G.domeFlash * 0.25 + G.cross * 1.5 + G.burst * 0.3) * lit);
   stage.chapelDome.intensity = 6 * (dayGain + G.cross);
   const kindI = !p ? 0 : p.breakdown ? 0.25 : { low: 0.5, mid: 0.85, high: 1 }[p.kind];
-  const showI = G.R * kindI * (1 + G.pump * 0.35);
+  const showI = G.R * kindI * (1 + G.pump * 0.35) * lit;
   const prog = {
     pattern: !p ? 0 : p.breakdown ? 3 : p.kind === 'low' ? 0 : p.kind === 'mid' ? 1 : 2,
     intensity: showI, haze: G.haze, strobe, colors: [U.uColA.value.clone(), U.uColB.value.clone(), U.uColC.value.clone()],
@@ -502,12 +527,14 @@ function updateShow(dt, now) {
     sp.color.copy(h.color);
     sp.intensity = showI * 80 * (strobe && !strobeOn ? 0.2 : 1);
   });
-  const lI = !p ? 0 : p.breakdown ? 0 : p.kind === 'high' ? 1 : p.kind === 'mid' ? 0.55 : 0.2;
-  lasers.update(G.t, beat, { intensity: 0.7 * lI * G.R * (strobe && !strobeOn ? 0.25 : 1) * (1 + G.pump * 0.4), haze: G.haze, mode: !p ? 0 : p.kind === 'low' ? 3 : p.kind === 'mid' ? (p.phrase % 2 ? 4 : 0) : [0, 1, 2, 4][p.bar % 4] });
+  const lI = !p || p.breakdown || preDrop ? 0 : p.kind === 'high' ? 1 : p.kind === 'mid' ? 0.55 : 0.15;
+  const ceiling = !!(p && p.bar < (G.ceiling || 0));
+  const lMode = !p ? 0 : ceiling ? 5 : p.kind === 'low' ? 3 : p.kind === 'mid' ? (p.phrase % 2 ? 4 : 0) : [0, 2, 1, 4][Math.floor(p.bar / 2) % 4];
+  lasers.update(G.t, beat, { intensity: 0.75 * lI * G.R * (strobe && !strobeOn ? 0.25 : 1) * (1 + G.pump * 0.5) * lit, haze: G.haze, mode: lMode, color: U.uColA.value, rainbow: !!(p && p.kind === 'high' && p.bar % 8 >= 6) });
   pyro.curtain = damp(pyro.curtain, p && p.kind === 'high' && !p.breakdown && p.phrase % 2 === 1 ? 1 : 0, 3, dt);
   pyro.update(dt, p && p.kind === 'high' && !p.breakdown && (p.phrase % 2 === 0 || p.bar % 8 >= 6) ? 1 : 0);
   confetti.update(dt, G.t);
-  bota.target = !G.songOn ? 0.12 : p && p.breakdown ? 1.15 : { low: 0.42, mid: 0.68, high: 0.95 }[p ? p.kind : 'low'];
+  bota.target = !G.songOn ? 0.08 : p && p.breakdown ? 0.9 : { low: 0.15, mid: 0.4, high: 1.05 }[p ? p.kind : 'low'];
   bota.update(dt, G.t);
   const discoI = !p ? 0 : p.breakdown ? 1 : p.kind === 'low' ? 0.8 : p.kind === 'mid' ? 0.45 : 0.2;
   disco.update(dt, discoI * G.R, p && p.breakdown ? goldCol : white);
@@ -521,7 +548,12 @@ function updateShow(dt, now) {
   const dk = church.hall.decks;
   dk.group.visible = false;
   for (const pl of dk.platters) pl.rotation.y -= dt * 3.5;
-  stage.altarSpot.intensity = G.cross * 110 + G.burst * 40;
+  stage.altarSpot.intensity = (G.cross * 110 + G.burst * 40) * lit;
+  riserEdge.color.copy(tmpCol).multiplyScalar((0.6 + G.pump * 2.5 + (strobeOn ? 2 : 0)) * G.ledMix * lit + G.cross * 0.8);
+  const root = clergy.priestRoot;
+  if (root) follow.target.position.set(root.position.x, root.position.y + 0.6, root.position.z);
+  G.follow = damp(G.follow || 0, clergy.mode === 'breakdance' ? 1 : 0, 4, dt);
+  follow.intensity = G.follow * 220 * lit;
   G.madGlow = damp(G.madGlow, 0, 2.5, dt);
   church.altar.madonna.material.emissiveIntensity = G.madGlow * 0.5 + G.cross * 0.5;
   church.mosaic.material.emissiveIntensity = G.cross * 0.4 + G.madGlow * 0.15;
@@ -562,6 +594,8 @@ function updateMood(dt, s) {
     const dx = t.x - root.position.x, dz = t.z - root.position.z, d = Math.hypot(dx, dz);
     const step = Math.min(d, dt * 2.2);
     if (d > 0.01) { root.position.x += (dx / d) * step; root.position.z += (dz / d) * step; }
+    const onRiser = Math.abs(root.position.x - RISER.x) < RISER.w / 2 - 0.1 && Math.abs(root.position.z - RISER.z) < RISER.d / 2 - 0.1;
+    root.position.y = damp(root.position.y, onRiser ? STAGE.h + RISER.h : STAGE.h, 9, dt);
     root.rotation.y = t.yaw;
   }
 }
@@ -643,7 +677,7 @@ function frame() {
   crowd.update(dt, G.t, s.beat, s.beatPhase, G.E);
   clergy.voice = A.ctx ? A.voiceLevel() : 0;
   clergy.update(dt, G.t, s.beat, s.beatPhase, G.E);
-  if (Math.random() < dt * 9) smoke.emit(clergy.censerPos, 1, { vel: { x: 0, y: 0.3, z: 0.05 }, jitter: 0.08, life: 6, size: 0.09, grow: 0.45, opacity: 0.22 });
+  if (Math.random() < dt * 9) smoke.emit(clergy.smokePos || clergy.censerPos, 1, { vel: { x: 0, y: 0.3, z: 0.05 }, jitter: 0.08, life: 6, size: 0.09, grow: 0.45, opacity: 0.22 });
   smoke.update(dt, G.t);
   glitter.update(dt, G.t);
   updateCamera(dt, s);
